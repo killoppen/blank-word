@@ -459,6 +459,7 @@
             .mobile-action-bar .act-primary { background: #2c5f8a; color: white; }
             .mobile-action-bar .act-primary:active { background: #1f4a6e; }
             .mobile-action-bar .act-danger { background: #fee2e2; color: #dc2626; }
+            body.keyboard-open .mobile-action-bar { display: none; }
         }
         /* --- 登录相关样式 --- */
         .user-bar { display:flex; align-items:center; gap:8px; }
@@ -2401,6 +2402,16 @@
                 alert('请先登录后再同步');
             }
         });
+
+        if (window.visualViewport) {
+            const syncKeyboardState = () => {
+                const keyboardOpen = window.innerHeight - window.visualViewport.height > 120;
+                document.body.classList.toggle('keyboard-open', keyboardOpen);
+            };
+            window.visualViewport.addEventListener('resize', syncKeyboardState);
+            window.visualViewport.addEventListener('scroll', syncKeyboardState);
+            syncKeyboardState();
+        }
 
         // 手机端：汉堡菜单抽屉
         const hamburgerBtn = document.getElementById('hamburgerBtn');
