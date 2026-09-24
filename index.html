@@ -398,6 +398,7 @@
                 font-size: 16px !important;
             }
             .infinite-table th:last-child, .infinite-table td:last-child { width: 44px; }
+            .infinite-table .operation-col { display: none; }
             .footer-note { display: none; }
 
             /* 表格内按钮 */
@@ -757,6 +758,7 @@
                     <button type="button" data-action="clear">🗑️ 清空词本</button>
                     <button type="button" data-action="reset">🔄 重置词本</button>
                     <button type="button" data-action="refresh">🔄 刷新复习</button>
+                    <button type="button" data-action="delete-row">🗑️ 删除当前行</button>
                 </div>
             </div>
         </div>
@@ -2007,7 +2009,7 @@
             const isLastDataCol = (idx === colArray.length - 1 && idx >= 4);
             headerHtml += `<th><div class="col-header"><span>${escapeHtml(getColumnLabel(colId, idx))}</span><div>${isBase ? `<button class="mask-col-btn" data-col-idx="${idx}">🔒</button>` : ''}${(!isReviewMode && isDeletable) ? `<button class="delete-col-btn" data-col-idx="${idx}">🗑️</button>` : ''}${(!isReviewMode && isLastDataCol) ? `<button class="add-col-btn" id="globalAddColBtn" title="为所有行添加新列">➕</button>` : ''}</div></div></th>`;
         });
-        headerHtml += '<th style="width:60px;">操作</th><tr>';
+        headerHtml += '<th class="operation-col" style="width:60px;">操作</th><tr>';
         tableHeader.innerHTML = headerHtml;
         
         document.querySelectorAll('.mask-col-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const colIdx = parseInt(btn.getAttribute('data-col-idx')); if (!isNaN(colIdx)) toggleWholeColumnMask(colIdx); }));
@@ -2045,7 +2047,7 @@
                 }
                 bodyHtml += `<td data-row="${r}" data-col-idx="${c}" data-col-id="${colId}" class="${isWhited ? 'whited-out' : ''} ${isSelected ? 'selected' : ''} ${isReadonly ? 'readonly-cell' : ''}" ${isReadonly ? 'title="内容由系统每日抽取产生，不可手动编辑"' : ''}><div class="cell-content">${cellContent}</div></td>`;
             }
-            bodyHtml += `<td style="text-align:center; white-space:nowrap;"><button class="delete-row-btn" data-row="${r}" title="删除此行">🗑️</button></td>`;
+            bodyHtml += `<td class="operation-col" style="text-align:center; white-space:nowrap;"><button class="delete-row-btn" data-row="${r}" title="删除此行">🗑️</button></td>`;
             bodyHtml += '</tr>';
         }
         tableBody.innerHTML = bodyHtml;
@@ -2329,6 +2331,7 @@
                 if (action === 'clear') clearAll();
                 if (action === 'reset') resetCurrentToBlank();
                 if (action === 'refresh') forceRefreshReview();
+                if (action === 'delete-row') deleteRow(selectedRow);
                 moreActionsMenu.setAttribute('hidden', '');
                 moreActionsBtn.setAttribute('aria-expanded', 'false');
             });
