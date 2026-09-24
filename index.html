@@ -657,6 +657,27 @@
         .quiz-wrong-item { padding: 10px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; }
         .quiz-wrong-item strong { color: #9a3412; }
         .quiz-empty { padding: 30px 12px; color: #64748b; text-align: center; }
+        .install-prompt {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 300;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 4px 14px;
+            max-width: 340px;
+            padding: 14px 16px;
+            background: #ffffff;
+            border: 1px solid #bfdbfe;
+            border-radius: 16px;
+            box-shadow: 0 16px 35px rgba(15,23,42,0.16);
+        }
+        .install-prompt[hidden] { display: none; }
+        .install-prompt strong { color: #0f172a; font-size: 0.9rem; }
+        .install-prompt p { grid-column: 1 / -1; color: #64748b; font-size: 0.78rem; line-height: 1.45; }
+        .install-prompt button { min-height: 34px; padding: 6px 11px; border: 0; border-radius: 8px; cursor: pointer; font-size: 0.78rem; }
+        .install-prompt .install-accept { background: #2c5f8a; color: white; }
+        .install-prompt .install-dismiss { background: #f1f5f9; color: #475569; }
         .review-list .infinite-table { border-collapse: separate; border-spacing: 0 8px; }
         .review-list .infinite-table tbody tr { box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
         .review-list .infinite-table tbody td { border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
@@ -738,6 +759,14 @@
         </div>
     </div>
 </div>
+
+<aside class="install-prompt" id="installPrompt" hidden>
+    <strong>安装空白格</strong>
+    <button class="install-dismiss" id="installPromptClose" type="button" aria-label="关闭安装提示">✕</button>
+    <p>添加到 Android 主屏幕，打开更快，使用更顺手。</p>
+    <span></span>
+    <button class="install-accept" id="installPromptButton" type="button">安装到手机</button>
+</aside>
 
 <!-- 手机端：底部操作栏 -->
 <div class="mobile-action-bar">
@@ -2601,6 +2630,31 @@ function closeQuiz() {
     if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
         window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
     }
+    let deferredInstallPrompt = null;
+    const installPrompt = document.getElementById('installPrompt');
+    const installPromptButton = document.getElementById('installPromptButton');
+    const installPromptClose = document.getElementById('installPromptClose');
+    const installDismissedKey = 'blank_word_install_prompt_dismissed';
+    window.addEventListener('beforeinstallprompt', event => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        if (localStorage.getItem(installDismissedKey) !== '1' && installPrompt) installPrompt.hidden = false;
+    });
+    installPromptButton?.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        if (installPrompt) installPrompt.hidden = true;
+    });
+    installPromptClose?.addEventListener('click', () => {
+        localStorage.setItem(installDismissedKey, '1');
+        if (installPrompt) installPrompt.hidden = true;
+    });
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        if (installPrompt) installPrompt.hidden = true;
+    });
 </script>
 </body>
 </html>
