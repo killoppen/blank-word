@@ -1,0 +1,20 @@
+{
+  "name": "空白格 · 单词学习",
+  "short_name": "空白格",
+  "description": "清爽的单词学习与云端同步工具",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f0f7ff",
+  "theme_color": "#2c5f8a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
