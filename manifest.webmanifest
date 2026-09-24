@@ -1,6 +1,7 @@
 {
   "name": "空白格 · 单词学习",
   "short_name": "空白格",
+  "id": "./index.html",
   "description": "清爽的单词学习与云端同步工具",
   "lang": "zh-CN",
   "start_url": "./index.html",
@@ -9,6 +10,7 @@
   "background_color": "#f0f7ff",
   "theme_color": "#2c5f8a",
   "orientation": "portrait-primary",
+  "categories": ["education", "productivity"],
   "icons": [
     {
       "src": "./icon.svg",
