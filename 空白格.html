@@ -1,0 +1,2660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>🌻 空白格 · 单词学习</title>
+    <meta name="description" content="空白格 - 单词学习与云同步工具">
+    <meta name="theme-color" content="#2c5f8a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 8 L52 8 L52 56 L12 56 Z' fill='%232c5f8a' /%3E%3Cpath d='M16 12 L48 12 L48 52 L16 52 Z' fill='%23f8fafc' /%3E%3Cpath d='M12 8 L52 8 L52 14 L12 14 Z' fill='%231e4a6e' /%3E%3Cline x1='20' y1='20' x2='44' y2='20' stroke='%232c5f8a' stroke-width='2' /%3E%3Cline x1='20' y1='28' x2='44' y2='28' stroke='%232c5f8a' stroke-width='2' /%3E%3Cline x1='20' y1='36' x2='38' y2='36' stroke='%232c5f8a' stroke-width='2' /%3E%3Ccircle cx='22' cy='46' r='6' fill='%233b82f6' opacity='0.15' /%3E%3Ctext x='22' y='49' font-size='8' fill='%233b82f6' font-weight='bold' font-family='serif'%3EA%3C/text%3E%3C/svg%3E">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: linear-gradient(145deg, #f0f7ff 0%, #e9eef5 100%);
+            font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .main-layout { display: flex; gap: 20px; max-width: 1600px; margin: 0 auto; height: calc(100vh - 40px); min-height: 600px; }
+        
+        /* 侧边栏 - 改为flex布局，复习词本区域固定顶部 */
+        .sidebar { 
+            width: 280px; 
+            background: white; 
+            border-radius: 28px; 
+            box-shadow: 0 8px 20px -8px rgba(0,0,0,0.15); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            flex-shrink: 0; 
+        }
+        .sidebar-header { 
+            padding: 20px 16px 12px; 
+            border-bottom: 1px solid #e2e8f0; 
+            flex-shrink: 0;
+        }
+        .sidebar-header h2 { 
+            font-size: 1.2rem; 
+            color: #2c5f8a; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+        }
+        
+        /* 复习词本固定区域 - 始终显示在顶部 */
+        .review-section {
+            flex-shrink: 0;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 8px;
+        }
+        
+        /* 总单词数卡片 */
+        .total-stats {
+            background: #e0f2fe;
+            border-radius: 16px;
+            padding: 10px 16px;
+            margin: 12px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        .total-stats .label {
+            font-size: 0.7rem;
+            color: #0369a1;
+            letter-spacing: 1px;
+        }
+        .total-stats .number {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #0c4a6e;
+            line-height: 1.2;
+        }
+        
+        /* 普通词本列表 - 可滚动区域 */
+        .notebook-list { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 0 8px 12px 8px;
+        }
+        .notebook-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 10px 12px; 
+            margin-bottom: 4px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            background: #f8fafc; 
+        }
+        .notebook-item:hover { background: #eef2ff; }
+        .notebook-item.active { background: #dbeafe; color: #1e40af; font-weight: 500; }
+        .notebook-name { 
+            flex: 1; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+            font-size: 0.9rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+        }
+        .notebook-count {
+            font-size: 0.7rem;
+            background: #cbd5e1;
+            padding: 2px 6px;
+            border-radius: 20px;
+            color: #1e293b;
+        }
+        .notebook-actions {
+            display: flex;
+            gap: 6px;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+        .notebook-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 4px 6px;
+            border-radius: 6px;
+            color: #94a3b8;
+            transition: all 0.2s;
+        }
+        .notebook-actions button:hover {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        .notebook-actions .delete-btn:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        /* 复习词本单独样式 */
+        .review-notebook-item {
+            background: #fff8e7;
+            margin: 8px 12px;
+            border-radius: 12px;
+        }
+        .review-notebook-item.active {
+            background: #fde68a;
+        }
+        
+        .add-notebook-btn { 
+            margin: 12px; 
+            padding: 10px; 
+            background: #2c5f8a; 
+            color: white; 
+            border: none; 
+            border-radius: 40px; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 6px; 
+            transition: all 0.2s; 
+            flex-shrink: 0;
+        }
+        .add-notebook-btn:hover { background: #1f4a6e; }
+        
+        /* 右侧区域 */
+        .right-area { flex: 1; background: white; border-radius: 28px; box-shadow: 0 8px 20px -8px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden; }
+        .toolbar { padding: 16px 24px; background: white; border-bottom: 2px solid #e2e8f0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+        .title-area h1 { font-size: 1.5rem; margin: 0; color: #2c5f8a; }
+        .title-area h1 span { background: linear-gradient(135deg, #2c5f8a, #1a3a4a); background-clip: text; -webkit-background-clip: text; color: transparent; }
+        .title-area p { margin: 4px 0 0; font-size: 0.75rem; color: #64748b; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        .search-box { position: relative; display: inline-block; }
+        .search-box input {
+            padding: 6px 28px 6px 28px;
+            border: 1px solid #cbd5e1;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            width: 180px;
+            transition: all 0.2s;
+            background: #f8fafc;
+            box-sizing: border-box;
+        }
+        .search-box input:focus {
+            border-color: #3b82f6;
+            outline: none;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+            width: 240px;
+        }
+        .search-box input::placeholder { color: #94a3b8; }
+        .search-clear {
+            position: absolute; right: 4px; top: 50%;
+            transform: translateY(-50%);
+            background: none; border: none; cursor: pointer;
+            color: #94a3b8; padding: 2px 4px;
+            font-size: 0.9rem; display: none; line-height: 1;
+        }
+        .search-clear:hover { color: #475569; }
+        .search-icon {
+            position: absolute; left: 10px; top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8; font-size: 0.85rem;
+            pointer-events: none;
+        }
+        .btn { background: white; border: 1px solid #cbd5e1; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+        .btn:hover { background: #f1f5f9; }
+        .btn-primary { background: #2c5f8a; color: white; border-color: #2c5f8a; }
+        .btn-primary:hover { background: #1f4a6e; }
+        .btn-danger { background: #fee2e2; border-color: #fecaca; color: #dc2626; }
+        .btn-danger:hover { background: #fecaca; }
+        .btn-success { background: #d1fae5; border-color: #a7f3d0; color: #065f46; }
+        .btn-success:hover { background: #a7f3d0; }
+        .btn-warning { background: #fef3c7; border-color: #fde68a; color: #b45309; }
+        .btn-warning:hover { background: #fde68a; }
+        .btn-secondary { background: #e2e8f0; border-color: #cbd5e1; color: #334155; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        .btn-info { background: #e0f2fe; border-color: #bae6fd; color: #0369a1; }
+        .btn-info:hover { background: #bae6fd; }
+        .refresh-btn { background: #e6f7e6; border-color: #a3d9a3; color: #2d6a2d; }
+        .refresh-btn:hover { background: #c8e6c8; }
+
+        .table-container { overflow-x: auto; overflow-y: auto; flex: 1; background: white; }
+        .infinite-table { border-collapse: collapse; min-width: 100%; font-size: 0.9rem; }
+        .infinite-table th { position: sticky; top: 0; background: #f8fafc; padding: 12px 10px; border: 1px solid #e2e8f0; font-weight: 600; z-index: 10; min-width: 150px; }
+        .infinite-table td { border: 1px solid #e2e8f0; padding: 12px; vertical-align: middle; background: white; cursor: pointer; }
+        .infinite-table td.selected { background: #dbeafe !important; box-shadow: inset 0 0 0 2px #3b82f6; outline: none; }
+        .whited-out { background-color: #ffffff !important; color: #ffffff !important; }
+        .whited-out .cell-content { color: #ffffff !important; }
+        .whited-out:hover .cell-content, .whited-out.selected .cell-content { color: #1e293b !important; }
+        .cell-content { color: #1e293b; word-break: break-word; transition: color 0.1s ease; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+        .readonly-cell .cell-content { color: #666; font-style: italic; }
+        .tts-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: all 0.15s;
+            color: #3b82f6;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .tts-btn:hover {
+            background: #dbeafe;
+            transform: scale(1.15);
+        }
+        .tts-btn:active {
+            transform: scale(0.95);
+        }
+        .whited-out .tts-btn {
+            color: #3b82f6 !important;
+        }
+        .delete-row-btn, .delete-col-btn, .mask-col-btn { background: none; border: none; font-size: 0.9rem; cursor: pointer; padding: 4px 6px; color: #94a3b8; transition: all 0.2s; border-radius: 4px; }
+        .delete-row-btn:hover { background: #fee2e2; color: #dc2626; }
+        .delete-col-btn:hover { background: #fee2e2; color: #dc2626; }
+        .mask-col-btn:hover { background: #cbd5e1; color: #1e293b; }
+        .add-col-btn { background: none; border: none; font-size: 0.9rem; cursor: pointer; padding: 4px 6px; color: #94a3b8; border-radius: 4px; }
+        .add-col-btn:hover { background: #e0f2fe; color: #0284c7; }
+        .col-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .footer-note { padding: 12px 20px; background: #f8fafc; font-size: 0.75rem; color: #64748b; border-top: 1px solid #e2e8f0; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background: white; border-radius: 20px; padding: 24px; width: 90%; max-width: 650px; box-shadow: 0 20px 35px -10px rgba(0,0,0,0.3); }
+        .modal-content input, .modal-content textarea { width: 100%; padding: 12px; margin-top: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; font-family: monospace; resize: vertical; }
+        .modal-content textarea { height: 350px; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        /* ===== 手机适配 ===== */
+        .hamburger-btn { display: none; }
+        .mobile-drawer { display: none; }
+        .drawer-overlay { display: none; }
+        .mobile-action-bar { display: none; }
+        @media (max-width: 768px) {
+            body { padding: 0; padding-bottom: 58px; overflow-x: hidden; }
+            .main-layout { flex-direction: column; height: 100vh; min-height: 100vh; gap: 0; overflow-x: hidden; }
+            .sidebar { display: none; }
+            .right-area { border-radius: 0; flex: 1; min-height: 0; overflow-x: hidden; }
+            .hamburger-btn {
+                display: flex; align-items: center; justify-content: center;
+                width: 44px; height: 44px;
+                border: none; background: none;
+                font-size: 1.5rem; cursor: pointer;
+                color: #2c5f8a; flex-shrink: 0;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .drawer-overlay {
+                display: none; position: fixed; inset: 0; z-index: 400;
+                background: rgba(0,0,0,0.4);
+            }
+            .drawer-overlay.show { display: block; }
+            .mobile-drawer {
+                display: block;
+                position: fixed; top: 0; left: -300px; bottom: 0; z-index: 450;
+                width: 280px; background: white;
+                box-shadow: 2px 0 20px rgba(0,0,0,0.15);
+                transition: left 0.25s ease;
+                overflow-y: auto; overflow-x: hidden;
+                display: flex; flex-direction: column;
+            }
+            .mobile-drawer.open { left: 0; }
+            .mobile-drawer .drawer-header {
+                padding: 20px 16px 14px;
+                border-bottom: 1px solid #e2e8f0;
+                display: flex; align-items: center; justify-content: space-between;
+            }
+            .mobile-drawer .drawer-header h2 { font-size: 1.05rem; color: #2c5f8a; }
+            .mobile-drawer .drawer-close {
+                background: none; border: none; font-size: 1.4rem;
+                cursor: pointer; color: #94a3b8; padding: 8px 12px;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .mobile-drawer .drawer-stats {
+                background: #e0f2fe; border-radius: 12px;
+                margin: 12px; padding: 10px 16px;
+                display: flex; justify-content: space-between; align-items: center;
+                flex-shrink: 0;
+            }
+            .mobile-drawer .drawer-stats .label { font-size: 0.75rem; color: #0369a1; }
+            .mobile-drawer .drawer-stats .number { font-size: 1.3rem; font-weight: 700; color: #0c4a6e; }
+            .mobile-drawer .drawer-nb-list { flex: 1; overflow-y: auto; padding: 6px 10px; }
+            .mobile-drawer .drawer-nb-item {
+                display: flex; justify-content: space-between; align-items: center;
+                padding: 14px 16px; margin-bottom: 2px;
+                border-radius: 10px; cursor: pointer;
+                font-size: 0.95rem; min-height: 48px;
+                transition: background 0.15s;
+            }
+            .mobile-drawer .drawer-nb-item:active { background: #eef2ff; }
+            .mobile-drawer .drawer-nb-item.review-item { background: #fff8e7; }
+            .mobile-drawer .drawer-add-btn {
+                margin: 10px 12px 14px; padding: 14px;
+                background: #2c5f8a; color: white;
+                border: none; border-radius: 12px;
+                font-size: 0.9rem; cursor: pointer; min-height: 48px;
+            }
+
+            /* 工具栏 */
+            .toolbar { padding: 6px 6px; gap: 4px; flex-shrink: 0; max-width: 100vw; overflow: hidden; }
+            .toolbar > div:last-child { overflow: hidden; flex-wrap: wrap; }
+            .title-area { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+            .title-area h1 { font-size: 1rem; }
+            .title-area p { display: none; }
+            .search-box { flex-shrink: 0; }
+            .search-box input {
+                width: 80px; font-size: 0.78rem;
+                padding: 5px 24px 5px 22px;
+                border-radius: 20px;
+            }
+            .search-box input:focus { width: 110px; }
+            .search-icon { font-size: 0.75rem; left: 7px; }
+            .search-clear { font-size: 0.85rem; padding: 3px 5px; right: 1px; }
+            .controls { gap: 2px; flex-wrap: wrap; }
+            .controls .btn { font-size: 0.62rem; padding: 4px 7px; border-radius: 6px; min-height: 28px; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+            /* 手机上隐藏低频按钮 */
+            .controls .btn:nth-child(7), .controls .btn:nth-child(8), .controls .btn:nth-child(9) { display: none; }
+            .user-bar { gap: 3px; flex-shrink: 0; }
+            .user-bar .login-btn { padding: 4px 7px; font-size: 0.62rem; min-height: 28px; }
+            #syncStatus { display: none !important; }
+            #userInfo { font-size: 0.62rem; }
+
+            /* 表格 */
+            .table-container { overflow: auto; -webkit-overflow-scrolling: touch; flex: 1; }
+            .infinite-table { border-collapse: collapse; width: auto; min-width: 100%; table-layout: fixed; }
+            .infinite-table td {
+                padding: 0; font-size: 0.9rem; vertical-align: middle;
+                word-break: break-word; min-width: 0;
+                width: 100px;
+            }
+            .infinite-table td:first-child { width: 140px; }
+            .infinite-table td:nth-child(2) { width: 120px; }
+            .infinite-table th {
+                padding: 10px 6px; font-size: 0.7rem;
+                position: sticky; top: 0; z-index: 10;
+                min-width: 0;
+                width: 100px;
+            }
+            .infinite-table th:first-child { width: 140px; }
+            .infinite-table th:nth-child(2) { width: 120px; }
+            .cell-content {
+                font-size: 0.9rem; gap: 4px;
+                padding: 12px 8px; min-height: 44px;
+                align-items: center;
+            }
+            .infinite-table th:last-child, .infinite-table td:last-child { width: 44px; }
+            .footer-note { display: none; }
+
+            /* 表格内按钮 */
+            .tts-btn { display: none; }
+            .delete-row-btn, .delete-col-btn, .mask-col-btn {
+                font-size: 1rem; padding: 8px 10px;
+                min-width: 36px; min-height: 36px;
+                -webkit-tap-highlight-color: transparent;
+            }
+            .add-col-btn {
+                font-size: 1rem; padding: 8px 10px;
+                min-width: 36px; min-height: 36px;
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            /* 弹窗 */
+            .modal-content { max-width: 95%; padding: 16px; border-radius: 14px; }
+            .modal-content textarea { height: 160px; font-size: 1rem; }
+            .modal-content input { font-size: 1rem; padding: 12px; }
+            .modal-buttons .btn { padding: 10px 20px; font-size: 0.9rem; min-height: 40px; }
+            .quiz-box { max-width: 95%; }
+            .quiz-body { padding: 16px; }
+            .quiz-header { padding: 14px 18px; }
+            .quiz-header h2 { font-size: 1rem; }
+            .quiz-close { font-size: 1.3rem; padding: 6px 10px; }
+            .quiz-start-btn { padding: 14px; font-size: 1rem; min-height: 48px; }
+            .quiz-nb-item { font-size: 0.9rem; padding: 10px; min-height: 40px; }
+            .quiz-count-btns button { padding: 8px 18px; font-size: 0.9rem; }
+            .auth-content { max-width: 95%; padding: 20px 16px; }
+            .auth-field input { font-size: 1rem; padding: 12px; }
+            .auth-btn { font-size: 1rem; padding: 12px; min-height: 48px; }
+
+            /* 底部操作栏 */
+            .mobile-action-bar {
+                display: flex;
+                position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+                background: rgba(255,255,255,0.96);
+                backdrop-filter: blur(12px);
+                border-top: 1px solid #e2e8f0;
+                padding: 5px 4px; gap: 4px;
+                justify-content: center;
+                padding-bottom: max(5px, env(safe-area-inset-bottom));
+                overflow: hidden;
+            }
+            .mobile-action-bar button {
+                flex: 1 1 0; min-width: 0;
+                padding: 10px 2px; border: none;
+                border-radius: 10px; font-size: 0.7rem;
+                font-weight: 500; cursor: pointer;
+                background: #f1f5f9; color: #334155;
+                min-height: 44px;
+                overflow: hidden;
+                -webkit-tap-highlight-color: transparent;
+                display: flex; flex-direction: column;
+                align-items: center; justify-content: center;
+                gap: 2px; line-height: 1.2;
+            }
+            .mobile-action-bar button:active { background: #cbd5e1; transform: scale(0.96); }
+            .mobile-action-bar .act-primary { background: #2c5f8a; color: white; }
+            .mobile-action-bar .act-primary:active { background: #1f4a6e; }
+            .mobile-action-bar .act-danger { background: #fee2e2; color: #dc2626; }
+        }
+        /* --- 登录相关样式 --- */
+        .user-bar { display:flex; align-items:center; gap:8px; }
+        .user-avatar { width:32px; height:32px; border-radius:50%; background:#2c5f8a; color:white; display:flex; align-items:center; justify-content:center; font-size:0.85rem; font-weight:bold; cursor:pointer; flex-shrink:0; }
+        .user-name { font-size:0.85rem; color:#334155; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .login-btn { background:#2c5f8a; color:white; border:none; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:0.8rem; transition:all 0.2s; }
+        .login-btn:hover { background:#1f4a6e; }
+        .logout-btn { background:none; border:1px solid #cbd5e1; padding:4px 10px; border-radius:8px; cursor:pointer; font-size:0.75rem; color:#64748b; transition:all 0.2s; }
+        .logout-btn:hover { background:#fee2e2; border-color:#fecaca; color:#dc2626; }
+        .sync-status { display: none; }
+        .sync-status.synced { color:#059669; background:#d1fae5; }
+        .sync-status.unsynced { color:#d97706; background:#fef3c7; }
+        .sync-status.error { color:#dc2626; background:#fee2e2; }
+        .sync-status.loading { color:#6366f1; background:#e0e7ff; }
+        
+        .auth-modal { display:none; position:fixed; z-index:2000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
+        .auth-content { background:white; border-radius:20px; padding:32px; width:90%; max-width:400px; box-shadow:0 20px 35px -10px rgba(0,0,0,0.3); }
+        .auth-content h2 { color:#2c5f8a; margin:0 0 8px; font-size:1.3rem; text-align:center; }
+        .auth-content p { color:#64748b; font-size:0.85rem; text-align:center; margin:0 0 20px; }
+        .auth-field { margin-bottom:14px; }
+        .auth-field label { display:block; font-size:0.8rem; color:#475569; margin-bottom:4px; font-weight:500; }
+        .auth-field input { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.9rem; box-sizing:border-box; transition:border 0.2s; }
+        .auth-field input:focus { border-color:#3b82f6; outline:none; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+        .auth-error { color:#dc2626; font-size:0.8rem; text-align:center; margin:8px 0; display:none; }
+        .auth-toggle { text-align:center; margin-top:14px; font-size:0.8rem; color:#64748b; }
+        .auth-toggle a { color:#3b82f6; cursor:pointer; text-decoration:none; }
+        .auth-toggle a:hover { text-decoration:underline; }
+        .auth-btn { width:100%; padding:10px; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:500; transition:all 0.2s; }
+        .auth-btn.primary { background:#2c5f8a; color:white; }
+        .auth-btn.primary:hover { background:#1f4a6e; }
+        .auth-btn.danger { background:#fee2e2; color:#dc2626; }
+        .auth-btn.danger:hover { background:#fecaca; }
+        .auth-loading { display:none; text-align:center; padding:20px; color:#64748b; font-size:0.85rem; }
+        .auth-success { display:none; text-align:center; padding:20px; }
+        .auth-success .icon { font-size:3rem; margin-bottom:10px; }
+        .auth-success p { color:#059669; font-weight:500; }
+
+        /* ===== 测验样式 ===== */
+        .quiz-overlay {
+            display: none; position: fixed; z-index: 3000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center;
+        }
+        .quiz-overlay.show { display: flex; }
+        .quiz-box {
+            background: white; border-radius: 24px;
+            width: 90%; max-width: 500px;
+            box-shadow: 0 20px 40px -12px rgba(0,0,0,0.35);
+            overflow: hidden;
+        }
+        .quiz-header {
+            padding: 18px 24px;
+            background: #2c5f8a; color: white;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .quiz-header h2 { font-size: 1.1rem; margin: 0; }
+        .quiz-close {
+            background: none; border: none; color: white;
+            font-size: 1.5rem; cursor: pointer; opacity: 0.7;
+        }
+        .quiz-close:hover { opacity: 1; }
+        .quiz-body { padding: 24px; max-height: 70vh; overflow-y: auto; }
+
+        /* 设置界面 */
+        .quiz-setup-section { margin-bottom: 18px; }
+        .quiz-setup-section label {
+            display: block;
+            font-size: 0.85rem; font-weight: 600; color: #334155;
+            margin-bottom: 6px;
+        }
+        .quiz-nb-list {
+            max-height: 160px; overflow-y: auto;
+            border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px;
+        }
+        .quiz-nb-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 8px; cursor: pointer; border-radius: 6px;
+            font-size: 0.85rem;
+        }
+        .quiz-nb-item:hover { background: #f1f5f9; }
+        .quiz-nb-item input { accent-color: #2c5f8a; }
+        .quiz-count-btns {
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }
+        .quiz-count-btns button {
+            padding: 6px 16px; border-radius: 20px;
+            border: 1px solid #cbd5e1; background: white;
+            cursor: pointer; font-size: 0.85rem; transition: all 0.15s;
+        }
+        .quiz-count-btns button:hover { background: #eef2ff; }
+        .quiz-count-btns button.active {
+            background: #2c5f8a; color: white; border-color: #2c5f8a;
+        }
+        .quiz-start-btn {
+            width: 100%; padding: 12px;
+            background: #2c5f8a; color: white; border: none;
+            border-radius: 12px; font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .quiz-start-btn:hover { background: #1f4a6e; }
+        .quiz-start-btn:disabled {
+            background: #94a3b8; cursor: not-allowed;
+        }
+
+        .study-mode {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 3px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 999px;
+        }
+        .mode-btn {
+            border: 0;
+            border-radius: 999px;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 7px 10px;
+            min-height: 32px;
+        }
+        .mode-btn.active {
+            background: #2c5f8a;
+            color: white;
+            box-shadow: 0 2px 5px rgba(44,95,138,0.2);
+        }
+        .more-actions { position: relative; display: inline-flex; }
+        .more-actions-btn {
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: white;
+            color: #334155;
+            cursor: pointer;
+            font-size: 0.82rem;
+            min-height: 36px;
+            padding: 7px 12px;
+        }
+        .more-actions-btn:hover { background: #f8fafc; }
+        .more-actions-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 80;
+            display: grid;
+            min-width: 170px;
+            padding: 6px;
+            gap: 2px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 14px 30px rgba(15,23,42,0.14);
+        }
+        .more-actions-menu[hidden] { display: none; }
+        .more-actions-menu button {
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #334155;
+            cursor: pointer;
+            font-size: 0.82rem;
+            padding: 10px 12px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .more-actions-menu button:hover { background: #f1f5f9; }
+        .table-container { overflow-x: hidden; }
+        .infinite-table { width: 100%; min-width: 0; table-layout: fixed; }
+        .infinite-table th, .infinite-table td { min-width: 0; }
+        .infinite-table td { overflow-wrap: anywhere; }
+        .quiz-progress { color: #64748b; font-size: 0.8rem; margin-bottom: 12px; }
+        .quiz-prompt {
+            padding: 18px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            color: #0f172a;
+            font-size: 1.35rem;
+            font-weight: 700;
+            line-height: 1.35;
+            text-align: center;
+            word-break: break-word;
+        }
+        .quiz-answer-input {
+            width: 100%;
+            margin-top: 14px;
+            padding: 13px 14px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 1rem;
+            outline: none;
+        }
+        .quiz-answer-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+        .quiz-feedback { min-height: 24px; margin-top: 10px; font-size: 0.88rem; line-height: 1.45; }
+        .quiz-feedback.correct { color: #047857; }
+        .quiz-feedback.wrong { color: #b91c1c; }
+        .quiz-next-btn { width: 100%; margin-top: 10px; min-height: 46px; }
+        .quiz-result-score { color: #2c5f8a; font-size: 2rem; font-weight: 800; text-align: center; }
+        .quiz-result-summary { color: #64748b; margin: 6px 0 18px; text-align: center; }
+        .quiz-wrong-list { display: grid; gap: 8px; max-height: 32vh; overflow-y: auto; }
+        .quiz-wrong-item { padding: 10px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; }
+        .quiz-wrong-item strong { color: #9a3412; }
+        .quiz-empty { padding: 30px 12px; color: #64748b; text-align: center; }
+        .install-prompt {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 300;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 4px 14px;
+            max-width: 340px;
+            padding: 14px 16px;
+            background: #ffffff;
+            border: 1px solid #bfdbfe;
+            border-radius: 16px;
+            box-shadow: 0 16px 35px rgba(15,23,42,0.16);
+        }
+        .install-prompt[hidden] { display: none; }
+        .install-prompt strong { color: #0f172a; font-size: 0.9rem; }
+        .install-prompt p { grid-column: 1 / -1; color: #64748b; font-size: 0.78rem; line-height: 1.45; }
+        .install-prompt button { min-height: 34px; padding: 6px 11px; border: 0; border-radius: 8px; cursor: pointer; font-size: 0.78rem; }
+        .install-prompt .install-accept { background: #2c5f8a; color: white; }
+        .install-prompt .install-dismiss { background: #f1f5f9; color: #475569; }
+        .review-list .infinite-table { border-collapse: separate; border-spacing: 0 8px; }
+        .review-list .infinite-table tbody tr { box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+        .review-list .infinite-table tbody td { border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+        .review-list .infinite-table tbody td:first-child { border-left: 1px solid #e2e8f0; border-radius: 12px 0 0 12px; }
+        .review-list .infinite-table tbody td:last-child { border-right: 1px solid #e2e8f0; border-radius: 0 12px 12px 0; }
+        @media (max-width: 768px) {
+            body { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+            .toolbar { position: relative; padding: 8px 10px; gap: 8px; }
+            .toolbar > div:last-child { width: 100%; gap: 6px; justify-content: space-between; }
+            .study-mode { order: 3; }
+            .more-actions { margin-left: auto; }
+            .more-actions-btn { min-height: 36px; padding: 7px 10px; }
+            .controls { gap: 4px; flex: 1; min-width: 0; }
+            .controls .btn { min-height: 36px; padding: 7px 8px; font-size: 0.72rem; }
+            .controls .btn:nth-child(n+4) { display: none; }
+            .table-container { overflow-x: hidden; }
+            .infinite-table { width: 100%; min-width: 0; table-layout: fixed; }
+            .infinite-table th, .infinite-table td { width: auto !important; }
+            .infinite-table th { padding: 8px 5px; font-size: 0.68rem; }
+            .cell-content { padding: 11px 7px; min-height: 48px; font-size: 0.88rem; }
+            .quiz-prompt { font-size: 1.2rem; padding: 16px 12px; }
+            .quiz-answer-input { min-height: 48px; }
+            .quiz-result-score { font-size: 1.8rem; }
+        }
+
+        </style>
+</head>
+<body>
+<div class="main-layout">
+    <div class="sidebar">
+        <div class="sidebar-header"><h2>📚 词本列表</h2></div>
+        
+        <!-- 总单词数统计卡片 -->
+        <div class="total-stats" id="totalStats">
+            <div class="label">📖 总单词数</div>
+            <div class="number" id="totalWordCount">0</div>
+        </div>
+        
+        <!-- 复习词本固定区域（始终置顶） -->
+        <div class="review-section" id="reviewSection"></div>
+        
+        <!-- 普通词本列表（可滚动） -->
+        <div class="notebook-list" id="notebookList"></div>
+        
+        <button class="add-notebook-btn" id="addNotebookBtn">➕ 新建词本</button>
+    </div>
+    <div class="right-area">
+        <div class="toolbar">
+            <div class="title-area"><button class="hamburger-btn" id="hamburgerBtn">≡</button><h1>🌻 <span>空白格</span></h1><p style="font-size:0.7rem;color:#94a3b8;">单词学习 · 云端同步</p></div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div class="search-box"><span class="search-icon">🔍</span><input type="text" id="searchInput" placeholder="搜索单词..."><button class="search-clear" id="searchClear">✕</button></div>
+                <div class="study-mode" id="studyMode" role="group" aria-label="学习模式">
+                    <button type="button" class="mode-btn" data-mode="en">学英语</button>
+                    <button type="button" class="mode-btn" data-mode="zh">学中文</button>
+                </div>
+                <div class="user-bar" id="userBar">
+                    <span id="syncStatus" class="sync-status"></span>
+                    <span id="userInfo"></span>
+                    <button id="loginBtn" class="login-btn">🔐 登录</button>
+                </div>
+                <div class="controls" id="toolbarControls">
+                <!-- 动态生成按钮 -->
+                </div></div>
+            <div class="more-actions" id="moreActions">
+                <button type="button" class="more-actions-btn" id="moreActionsBtn" aria-expanded="false">⋯ 更多</button>
+                <div class="more-actions-menu" id="moreActionsMenu" hidden>
+                    <button type="button" data-action="shuffle">🔀 打乱顺序</button>
+                    <button type="button" data-action="restore">↩️ 恢复顺序</button>
+                    <button type="button" data-action="clear">🗑️ 清空词本</button>
+                    <button type="button" data-action="reset">🔄 重置词本</button>
+                    <button type="button" data-action="refresh">🔄 刷新复习</button>
+                </div>
+            </div>
+        </div>
+        <div class="table-container" id="tableContainer"><table class="infinite-table" id="mainTable"><thead id="tableHeader"></thead><tbody id="tableBody"></tbody></table></div>
+        <div class="footer-note" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>💡 空格编辑 ｜ Tab 遮盖 ｜ 方向键移动 ｜ Enter 添加行 ｜ 🔒 整列遮盖 ｜ 登录可同步</span>
+            <span style="display:flex;align-items:center;gap:10px;"><span id="searchInfo" style="font-size:0.7rem;color:#3b82f6;display:none;"></span><span style="font-size:0.7rem;color:#94a3b8;">🌻 空白格 · v2.0</span></span>
+        </div>
+    </div>
+</div>
+
+<aside class="install-prompt" id="installPrompt" hidden>
+    <strong>安装空白格</strong>
+    <button class="install-dismiss" id="installPromptClose" type="button" aria-label="关闭安装提示">✕</button>
+    <p>添加到 Android 主屏幕，打开更快，使用更顺手。</p>
+    <span></span>
+    <button class="install-accept" id="installPromptButton" type="button">安装到手机</button>
+</aside>
+
+<!-- 手机端：底部操作栏 -->
+<div class="mobile-action-bar">
+    <button class="act-primary" id="mobEditBtn">✏️ 编辑</button>
+    <button id="mobMaskBtn">🔒 遮盖</button>
+    <button id="mobNewBtn">➕ 新行</button>
+    <button id="mobRefreshBtn">🔄 同步</button>
+</div>
+
+<!-- 手机端：汉堡菜单 + 抽屉 -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="mobile-drawer" id="mobileDrawer">
+    <div class="drawer-header">
+        <h2>📚 词本列表</h2>
+        <button class="drawer-close" id="drawerClose">✕</button>
+    </div>
+    <div class="drawer-stats">
+        <span class="label">📖 总单词数</span>
+        <span class="number" id="drawerTotalCount">0</span>
+    </div>
+    <div class="drawer-nb-list" id="drawerNbList"></div>
+    <button class="drawer-add-btn" id="drawerAddBtn">➕ 新建词本</button>
+</div>
+
+<!-- 旧手机操作栏删除 -->
+<div style="display:none;"></div>
+
+<div id="batchModal" class="modal"><div class="modal-content"><h3>📚 批量添加单词</h3><div style="display:flex;gap:12px;margin:12px 0 8px;flex-wrap:wrap;"><label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:6px 12px;border-radius:8px;background:#e0f2fe;border:2px solid #7dd3fc;font-size:0.85rem;"><input type="radio" name="batchMode" value="en" checked> 🇬🇧 仅英文单词</label><label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:6px 12px;border-radius:8px;background:#fef3c7;border:2px solid #fcd34d;font-size:0.85rem;"><input type="radio" name="batchMode" value="zh"> 🇨🇳 仅中文意思</label><label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:6px 12px;border-radius:8px;background:#d1fae5;border:2px solid #6ee7b7;font-size:0.85rem;"><input type="radio" name="batchMode" value="both"> 🌐 中英对照（英文,中文）</label></div><textarea id="batchInput" placeholder="apple,orange,banana&#10;cat,dog,rabbit"></textarea><div class="modal-buttons"><button class="btn" id="cancelBatchBtn">取消</button><button class="btn btn-primary" id="confirmBatchBtn">确认添加</button></div></div></div>
+<div id="renameModal" class="modal"><div class="modal-content"><h3>✏️ 重命名词本</h3><input type="text" id="renameInput" placeholder="新词本名称"><div class="modal-buttons"><button class="btn" id="cancelRenameBtn">取消</button><button class="btn btn-primary" id="confirmRenameBtn">确认</button></div></div></div>
+
+<!-- 登录/注册弹窗 -->
+<div id="authModal" class="auth-modal">
+  <div class="auth-content" id="authFormContainer">
+    <!-- 登录表单 -->
+    <div id="loginForm">
+      <h2>🔐 登录</h2>
+      <p>无需登录也可直接使用；登录后数据会自动同步到云端</p>
+      <div class="auth-field">
+        <label>邮箱</label>
+        <input type="email" id="loginUsername" placeholder="输入邮箱" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>密码</label>
+        <input type="password" id="loginPassword" placeholder="输入密码" autocomplete="current-password">
+      </div>
+      <div class="auth-error" id="loginError"></div>
+      <button class="auth-btn primary" id="loginSubmitBtn">登 录</button>
+      <div class="auth-toggle">还没有账号？<a id="showRegisterBtn">注册新账号</a></div>
+    </div>
+    
+    <!-- 注册表单 -->
+    <div id="registerForm" style="display:none;">
+      <h2>📝 注册</h2>
+      <p>创建账号即可开启云端同步</p>
+      <div class="auth-field">
+        <label>邮箱</label>
+        <input type="email" id="registerUsername" placeholder="输入邮箱" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label>密码</label>
+        <input type="password" id="registerPassword" placeholder="至少4位" autocomplete="new-password">
+      </div>
+      <div class="auth-error" id="registerError"></div>
+      <button class="auth-btn primary" id="registerSubmitBtn">注 册</button>
+      <div class="auth-toggle">已有账号？<a id="showLoginBtn">去登录</a></div>
+    </div>
+    
+    <!-- 加载中 -->
+    <div id="authLoading" class="auth-loading">⏳ 处理中...</div>
+    
+    <!-- 成功 -->
+    <div id="authSuccess" class="auth-success">
+      <div class="icon">✅</div>
+      <p id="authSuccessMsg">操作成功</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 测验弹窗 ===== -->
+<div id="quizOverlay" class="quiz-overlay">
+  <div class="quiz-box">
+    <div class="quiz-header">
+      <h2>📝 单词测验</h2>
+      <button class="quiz-close" onclick="closeQuiz()">✕</button>
+    </div>
+    <div class="quiz-body" id="quizBody"></div>
+  </div>
+</div>
+
+<script>
+    // ---------- 常量定义 ----------
+    const STORAGE_KEY = 'kuihuabaodian_all_notebooks_review';
+    const REVIEW_NOTEBOOK_ID = 'review_notebook';
+    const REVIEW_DAILY_LIMIT = 50;
+
+    let notebooks = {};
+    let activeNotebookId = null;
+    
+    let rows = [];
+    let allColIds = new Set();
+    let nextColId = 2;
+    const BASE_COL_0 = 'col_0';
+    const BASE_COL_1 = 'col_1';
+    const EXT_COL_0 = 'col_2';
+    const EXT_COL_1 = 'col_3';
+    const STUDY_MODE_KEY = 'kuihua_study_mode';
+    let currentMode = localStorage.getItem(STUDY_MODE_KEY) || 'en';
+    let selectedRow = 0;
+    let selectedColIdx = 0;
+    let isEditing = false;
+    let tabPressCount = 0;
+    let isReviewMode = false;
+    let searchQuery = '';
+    let _preSearchState = null;  // 搜索前状态备份
+    let originalRowsSnapshot = null;   // 存储原始顺序的快照
+
+    const reviewSection = document.getElementById('reviewSection');
+    const notebookListDiv = document.getElementById('notebookList');
+    const addNotebookBtn = document.getElementById('addNotebookBtn');
+    const tableContainer = document.getElementById('tableContainer');
+    const tableHeader = document.getElementById('tableHeader');
+    const tableBody = document.getElementById('tableBody');
+    const toolbarControls = document.getElementById('toolbarControls');
+    const batchModal = document.getElementById('batchModal');
+    const batchInput = document.getElementById('batchInput');
+    const cancelBatchBtn = document.getElementById('cancelBatchBtn');
+    const confirmBatchBtn = document.getElementById('confirmBatchBtn');
+    const renameModal = document.getElementById('renameModal');
+    const renameInput = document.getElementById('renameInput');
+    const cancelRenameBtn = document.getElementById('cancelRenameBtn');
+    const confirmRenameBtn = document.getElementById('confirmRenameBtn');
+    const totalWordCountSpan = document.getElementById('totalWordCount');
+    
+    // ---------- Supabase 云同步 ----------
+    const SB_URL = 'https://xnmaktnpvtukrxnfrsff.supabase.co';
+    const SB_KEY = 'sb_publishable_sB5WsiCpCz7xRN99rxSBQw_8R7oZctd';
+    let sb = null;
+    try {
+        if (typeof supabase !== 'undefined') {
+            sb = supabase.createClient(SB_URL, SB_KEY);
+        }
+    } catch(e) {
+        console.warn('Supabase 初始化失败，离线运行', e);
+    }
+
+    let syncDirty = false;
+    let lastSyncTime = null;
+
+    let pendingRenameId = null;
+    let addRowBtn, batchAddBtn, clearAllBtn, removeExtraColsBtn, shuffleRowsBtn, resetToBlankBtn, refreshReviewBtn, restoreOrderBtn;
+
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+
+    function getNormalColumnIds() { return [BASE_COL_0, BASE_COL_1, EXT_COL_0, EXT_COL_1]; }
+
+    function ensureRowColumns(row, includeExtensions = true) {
+        if (!row[BASE_COL_0]) row[BASE_COL_0] = { value: '', isWhitedOut: false };
+        if (!row[BASE_COL_1]) row[BASE_COL_1] = { value: '', isWhitedOut: false };
+        if (includeExtensions) {
+            if (!row[EXT_COL_0]) row[EXT_COL_0] = { value: '', isWhitedOut: false };
+            if (!row[EXT_COL_1]) row[EXT_COL_1] = { value: '', isWhitedOut: false };
+        }
+        return row;
+    }
+
+    function updateStudyModeUI() {
+        document.querySelectorAll('.mode-btn').forEach(button => {
+            button.classList.toggle('active', button.dataset.mode === currentMode);
+            button.setAttribute('aria-pressed', button.dataset.mode === currentMode ? 'true' : 'false');
+        });
+    }
+
+    function applyReviewModeMask() {
+        if (!isReviewMode) return;
+        const maskedColumn = currentMode === 'en' ? BASE_COL_0 : BASE_COL_1;
+        selectedColIdx = currentMode === 'en' ? 1 : 0;
+        rows.forEach(row => {
+            ensureRowColumns(row, false);
+            row[BASE_COL_0].isWhitedOut = maskedColumn === BASE_COL_0;
+            row[BASE_COL_1].isWhitedOut = maskedColumn === BASE_COL_1;
+        });
+        syncCurrentDataToActive();
+        renderTable();
+    }
+
+    function setStudyMode(mode) {
+        if (mode !== 'en' && mode !== 'zh') return;
+        currentMode = mode;
+        localStorage.setItem(STUDY_MODE_KEY, mode);
+        updateStudyModeUI();
+        if (isReviewMode) applyReviewModeMask();
+    }
+
+    function speakText(text) {
+        if (!text || !text.trim()) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text.trim());
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function calculateTotalWordCount() {
+        let total = 0;
+        for (let id in notebooks) {
+            if (id === REVIEW_NOTEBOOK_ID) continue;
+            const nb = notebooks[id];
+            if (nb.isQuiz) continue;
+            const rowsData = nb.data.rows;
+            for (let i = 0; i < rowsData.length; i++) {
+                const word = rowsData[i][BASE_COL_0] ? rowsData[i][BASE_COL_0].value : '';
+                if (word && word.trim() !== '') total++;
+            }
+        }
+        return total;
+    }
+
+    function updateTotalStats() {
+        totalWordCountSpan.textContent = calculateTotalWordCount();
+    }
+
+    function getNotebookWordCount(notebookData) {
+        let count = 0;
+        for (let i = 0; i < notebookData.rows.length; i++) {
+            const word = notebookData.rows[i][BASE_COL_0] ? notebookData.rows[i][BASE_COL_0].value : '';
+            if (word && word.trim() !== '') count++;
+        }
+        return count;
+    }
+
+    // ---------- Supabase 用户与数据同步 ----------
+
+    function getUserEmail() {
+        return localStorage.getItem('kuihua_auth_username') || '';
+    }
+
+    function hydrateNotebook(storedNotebook) {
+        return {
+            name: storedNotebook.name || '未命名',
+            isReview: storedNotebook.isReview || false,
+            isQuiz: storedNotebook.isQuiz || false,
+            data: {
+                rows: Array.isArray(storedNotebook.data?.rows) ? storedNotebook.data.rows : [],
+                allColIds: new Set(storedNotebook.data?.allColIds || [BASE_COL_0, BASE_COL_1]),
+                nextColId: storedNotebook.data?.nextColId || 2,
+                selectedRow: storedNotebook.data?.selectedRow || 0,
+                selectedColIdx: storedNotebook.data?.selectedColIdx || 0,
+                tabPressCount: storedNotebook.data?.tabPressCount || 0,
+                originalRowsSnapshot: storedNotebook.data?.originalRowsSnapshot || null
+            }
+        };
+    }
+
+    function mergeLocalNotebooks(localPayload) {
+        if (!localPayload || typeof localPayload !== 'object') return;
+        for (const id of Object.keys(localPayload)) {
+            const localNotebook = hydrateNotebook(localPayload[id]);
+            if (id === REVIEW_NOTEBOOK_ID) continue;
+            if (!notebooks[id]) {
+                notebooks[id] = localNotebook;
+                continue;
+            }
+            const cloudNotebook = notebooks[id];
+            const seen = new Set(cloudNotebook.data.rows.map(row => `${normalizeQuizAnswer(row[BASE_COL_0]?.value)}\u0000${normalizeQuizAnswer(row[BASE_COL_1]?.value)}`));
+            localNotebook.data.rows.forEach(row => {
+                const key = `${normalizeQuizAnswer(row[BASE_COL_0]?.value)}\u0000${normalizeQuizAnswer(row[BASE_COL_1]?.value)}`;
+                if (!seen.has(key)) {
+                    cloudNotebook.data.rows.push(row);
+                    seen.add(key);
+                }
+            });
+            localNotebook.data.allColIds.forEach(colId => cloudNotebook.data.allColIds.add(colId));
+        }
+    }
+
+    async function cloudLogin(email, password) {
+        if (!sb) throw new Error('未连接云端服务');
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw new Error(error.message);
+        const localSnapshot = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        localStorage.setItem('kuihua_auth_username', email);
+        updateAuthUI();
+        await loadFromCloud();
+        mergeLocalNotebooks(localSnapshot);
+        saveAllNotebooks();
+        await saveToCloud();
+    }
+
+    async function cloudRegister(email, password) {
+        if (!sb) throw new Error('未连接云端服务');
+        const { data, error } = await sb.auth.signUp({ email, password });
+        if (error) throw new Error(error.message);
+        localStorage.setItem('kuihua_auth_username', email);
+        updateAuthUI();
+        await saveToCloud();
+    }
+
+    async function cloudLogout() {
+        if (sb) await sb.auth.signOut();
+        localStorage.removeItem('kuihua_auth_username');
+        updateAuthUI();
+    }
+
+    async function saveToCloud() {
+        if (!sb) return;
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) { setSyncStatus('unsynced', '☁️ 未登录'); return; }
+        const userId = session.user.id;
+
+        const dataToSave = {};
+        for (let id in notebooks) {
+            const nb = notebooks[id];
+            dataToSave[id] = {
+                name: nb.name,
+                isReview: nb.isReview || false,
+                isQuiz: nb.isQuiz || false,
+                data: {
+                    rows: nb.data.rows,
+                    allColIds: Array.from(nb.data.allColIds),
+                    nextColId: nb.data.nextColId,
+                    selectedRow: nb.data.selectedRow,
+                    selectedColIdx: nb.data.selectedColIdx,
+                    tabPressCount: nb.data.tabPressCount || 0,
+                    originalRowsSnapshot: nb.data.originalRowsSnapshot || null
+                }
+            };
+        }
+        try {
+            setSyncStatus('loading', '☁️ 同步中...');
+            const payload = JSON.stringify({ notebooks: dataToSave, activeNotebookId });
+            const { error } = await sb.from('sync_data').upsert({ user_id: userId, payload: payload, updated_at: new Date().toISOString() });
+            if (error) throw error;
+            lastSyncTime = Date.now();
+            syncDirty = false;
+            setSyncStatus('synced', '☁️ 已同步');
+        } catch (e) {
+            setSyncStatus('error', '☁️ 同步失败');
+            console.error('Supabase save failed:', e);
+        }
+    }
+
+    async function loadFromCloud() {
+        if (!sb) return;
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) return;
+        const userId = session.user.id;
+        try {
+            setSyncStatus('loading', '☁️ 加载中...');
+            const { data, error } = await sb.from('sync_data').select('payload').eq('user_id', userId).maybeSingle();
+            if (error) throw error;
+            if (data && data.payload) {
+                const raw = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
+                const cloudNotebooks = raw.notebooks || {};
+                const cloudActiveId = raw.activeNotebookId;
+                for (let id in cloudNotebooks) {
+                    const cnb = cloudNotebooks[id];
+                    notebooks[id] = {
+                        name: cnb.name,
+                        isReview: cnb.isReview || false,
+                        isQuiz: cnb.isQuiz || false,
+                        data: {
+                            rows: cnb.data.rows,
+                            allColIds: new Set(cnb.data.allColIds),
+                            nextColId: cnb.data.nextColId || 2,
+                            selectedRow: cnb.data.selectedRow || 0,
+                            selectedColIdx: cnb.data.selectedColIdx || 0,
+                            tabPressCount: cnb.data.tabPressCount || 0,
+                            originalRowsSnapshot: cnb.data.originalRowsSnapshot || null
+                        }
+                    };
+                }
+                if (cloudActiveId && notebooks[cloudActiveId]) {
+                    activeNotebookId = cloudActiveId;
+                }
+                saveAllNotebooks();
+                renderSidebar();
+                loadCurrentNotebookData();
+                lastSyncTime = Date.now();
+                syncDirty = false;
+                setSyncStatus('synced', '☁️ 已同步');
+            } else {
+                await saveToCloud();
+            }
+        } catch (e) {
+            setSyncStatus('unsynced', '☁️ 未连接');
+            console.error('Supabase load failed:', e);
+        }
+    }
+
+    function setSyncStatus(type, text) {
+        const el = document.getElementById('syncStatus');
+        if (!el) return;
+        el.className = 'sync-status ' + type;
+        el.textContent = text;
+    }
+
+    function updateAuthUI() {
+        const loginBtn = document.getElementById('loginBtn');
+        const userInfo = document.getElementById('userInfo');
+        if (!loginBtn || !userInfo) return;
+        const email = getUserEmail();
+        if (email) {
+            loginBtn.textContent = '退出';
+            loginBtn.className = 'logout-btn';
+            loginBtn.onclick = cloudLogout;
+            userInfo.innerHTML = '<span class="user-avatar">' + email.charAt(0).toUpperCase() + '</span><span class="user-name">' + escapeHtml(email) + '</span>';
+            setSyncStatus('unsynced', '☁️ 待同步');
+        } else {
+            loginBtn.textContent = '🔐 登录';
+            loginBtn.className = 'login-btn';
+            loginBtn.onclick = openAuthModal;
+            userInfo.innerHTML = '';
+            setSyncStatus('', '');
+        }
+    }
+
+    function openAuthModal() {
+        document.getElementById('authModal').style.display = 'flex';
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('authLoading').style.display = 'none';
+        document.getElementById('authSuccess').style.display = 'none';
+        document.getElementById('loginError').style.display = 'none';
+        document.getElementById('registerError').style.display = 'none';
+        document.getElementById('loginUsername').value = '';
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('registerUsername').value = '';
+        document.getElementById('registerPassword').value = '';
+        setTimeout(() => document.getElementById('loginUsername').focus(), 100);
+    }
+
+    function closeAuthModal() {
+        document.getElementById('authModal').style.display = 'none';
+    }
+
+    function showAuthLoading(show) {
+        document.getElementById('loginForm').style.display = show ? 'none' : 'block';
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('authLoading').style.display = show ? 'block' : 'none';
+        document.getElementById('authSuccess').style.display = 'none';
+    }
+
+    function showAuthSuccess(msg) {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('authLoading').style.display = 'none';
+        document.getElementById('authSuccess').style.display = 'block';
+        document.getElementById('authSuccessMsg').textContent = msg;
+        setTimeout(closeAuthModal, 1500);
+    }
+
+    // ---------- 自动登录 ----------
+    async function tryAutoLogin() {
+        if (!sb) return false;
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) {
+            // 清理过期的本地登录状态
+            localStorage.removeItem('kuihua_auth_username');
+            updateAuthUI();
+            return false;
+        }
+        localStorage.setItem('kuihua_auth_username', session.user.email);
+        updateAuthUI();
+        try {
+            await loadFromCloud();
+            return true;
+        } catch (e) {
+            await cloudLogout();
+            return false;
+        }
+    }
+    
+    // ---------- 修改 saveAllNotebooks 加入自动同步 ----------
+    function saveAllNotebooks() {
+        const toSave = {};
+        for (let id in notebooks) {
+            const nb = notebooks[id];
+            const dataCopy = {
+                rows: nb.data.rows,
+                allColIds: Array.from(nb.data.allColIds),
+                nextColId: nb.data.nextColId,
+                selectedRow: nb.data.selectedRow,
+                selectedColIdx: nb.data.selectedColIdx,
+                tabPressCount: nb.data.tabPressCount || 0,
+                originalRowsSnapshot: nb.data.originalRowsSnapshot || null
+            };
+            toSave[id] = { name: nb.name, data: dataCopy, isReview: nb.isReview || false, isQuiz: nb.isQuiz || false };
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+        updateTotalStats();
+        // 已登录时自动同步到云端
+        if (sb && getUserEmail()) {
+            syncDirty = true;
+            lastSyncTime = Date.now(); // 标记本地更新时间，防止自动拉取覆盖
+            if (window._syncDebounceTimer) clearTimeout(window._syncDebounceTimer);
+            window._syncDebounceTimer = setTimeout(() => {
+                saveToCloud();
+            }, 300);
+        }
+    }
+    
+    function loadAllNotebooks() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                const obj = JSON.parse(saved);
+                for (let id in obj) {
+                    const nb = obj[id];
+                    notebooks[id] = {
+                        name: nb.name,
+                        isReview: nb.isReview || false,
+                        isQuiz: nb.isQuiz || false,
+                        data: {
+                            rows: nb.data.rows,
+                            allColIds: new Set(nb.data.allColIds),
+                            nextColId: nb.data.nextColId,
+                            selectedRow: nb.data.selectedRow,
+                            selectedColIdx: nb.data.selectedColIdx,
+                            tabPressCount: nb.data.tabPressCount || 0,
+                            originalRowsSnapshot: nb.data.originalRowsSnapshot || null
+                        }
+                    };
+                }
+            } catch(e) { console.error(e); }
+        }
+        if (!notebooks[REVIEW_NOTEBOOK_ID]) {
+            notebooks[REVIEW_NOTEBOOK_ID] = {
+                name: '📚 复习词本',
+                isReview: true,
+                data: {
+                    rows: [],
+                    allColIds: new Set([BASE_COL_0, BASE_COL_1]),
+                    nextColId: 2,
+                    selectedRow: 0,
+                    selectedColIdx: 0,
+                    tabPressCount: 0,
+                    originalRowsSnapshot: null
+                }
+            };
+        }
+        const hasNormal = Object.keys(notebooks).some(id => id !== REVIEW_NOTEBOOK_ID);
+        if (!hasNormal) {
+            const defaultId = 'notebook_' + Date.now();
+            notebooks[defaultId] = {
+                name: '默认词本',
+                isReview: false,
+                data: {
+                    rows: [],
+                    allColIds: new Set([BASE_COL_0, BASE_COL_1, EXT_COL_0, EXT_COL_1]),
+                    nextColId: 4,
+                    selectedRow: 0,
+                    selectedColIdx: 0,
+                    tabPressCount: 0,
+                    originalRowsSnapshot: null
+                }
+            };
+        }
+        saveAllNotebooks();
+        if (!activeNotebookId || !notebooks[activeNotebookId]) {
+            activeNotebookId = Object.keys(notebooks).find(id => id !== REVIEW_NOTEBOOK_ID) || REVIEW_NOTEBOOK_ID;
+        }
+        updateTotalStats();
+    }
+    
+    function syncCurrentDataToActive() {
+        if (!activeNotebookId) return;
+        notebooks[activeNotebookId].data = {
+            rows: rows.slice(),
+            allColIds: new Set(allColIds),
+            nextColId: nextColId,
+            selectedRow: selectedRow,
+            selectedColIdx: selectedColIdx,
+            tabPressCount: tabPressCount,
+            originalRowsSnapshot: originalRowsSnapshot ? originalRowsSnapshot.slice() : null
+        };
+        saveAllNotebooks();
+        renderSidebar(); // 重新渲染侧边栏以更新计数
+    }
+    
+    function loadCurrentNotebookData() {
+        if (!activeNotebookId || !notebooks[activeNotebookId]) return;
+        const data = notebooks[activeNotebookId].data;
+        rows = data.rows.slice();
+        allColIds = new Set(data.allColIds);
+        nextColId = data.nextColId;
+        selectedRow = data.selectedRow;
+        selectedColIdx = data.selectedColIdx;
+        tabPressCount = data.tabPressCount || 0;
+        originalRowsSnapshot = data.originalRowsSnapshot ? data.originalRowsSnapshot.slice() : null;
+        isReviewMode = notebooks[activeNotebookId].isReview || false;
+        if (!allColIds.has(BASE_COL_0)) allColIds.add(BASE_COL_0);
+        if (!allColIds.has(BASE_COL_1)) allColIds.add(BASE_COL_1);
+        if (!isReviewMode) {
+            allColIds.add(EXT_COL_0);
+            allColIds.add(EXT_COL_1);
+            nextColId = Math.max(nextColId, 4);
+        }
+        for (let i = 0; i < rows.length; i++) {
+            ensureRowColumns(rows[i], !isReviewMode);
+            if (isReviewMode) {
+                rows[i][BASE_COL_0].isWhitedOut = currentMode === 'en';
+                rows[i][BASE_COL_1].isWhitedOut = currentMode === 'zh';
+            }
+        }
+        if (isReviewMode) selectedColIdx = currentMode === 'en' ? 1 : 0;
+        clampSelection();
+        renderToolbarButtons();
+        renderTable();
+        focusSelectedCell();
+    }
+    
+    function renderToolbarButtons() {
+        toolbarControls.innerHTML = '';
+        if (isReviewMode) {
+            quizBtn = document.createElement('button');
+            quizBtn.className = 'btn';
+            quizBtn.textContent = '📝 测验';
+            quizBtn.onclick = function() { openQuizSetup(); };
+            toolbarControls.appendChild(quizBtn);
+            refreshReviewBtn = document.createElement('button');
+            refreshReviewBtn.className = 'btn refresh-btn';
+            refreshReviewBtn.textContent = '🔄 立即刷新复习词本';
+            refreshReviewBtn.addEventListener('click', forceRefreshReview);
+            toolbarControls.appendChild(refreshReviewBtn);
+            removeExtraColsBtn = document.createElement('button');
+            removeExtraColsBtn.className = 'btn btn-warning';
+            removeExtraColsBtn.textContent = '🗑️ 删除多余列';
+            removeExtraColsBtn.addEventListener('click', removeExtraColumns);
+            toolbarControls.appendChild(removeExtraColsBtn);
+            resetToBlankBtn = document.createElement('button');
+            resetToBlankBtn.className = 'btn btn-secondary';
+            resetToBlankBtn.textContent = '🔄 重置当前词本';
+            resetToBlankBtn.addEventListener('click', resetCurrentToBlank);
+            toolbarControls.appendChild(resetToBlankBtn);
+            clearAllBtn = document.createElement('button');
+            clearAllBtn.className = 'btn btn-danger';
+            clearAllBtn.textContent = '🗑️ 清空所有行';
+            clearAllBtn.addEventListener('click', clearAll);
+            toolbarControls.appendChild(clearAllBtn);
+        } else {
+            quizBtn = document.createElement('button');
+            quizBtn.className = 'btn';
+            quizBtn.textContent = '📝 测验';
+            quizBtn.onclick = function() { openQuizSetup(); };
+            toolbarControls.appendChild(quizBtn);
+            addRowBtn = document.createElement('button');
+            addRowBtn.className = 'btn';
+            addRowBtn.textContent = '➕ 添加新行';
+            addRowBtn.addEventListener('click', addNewRow);
+            toolbarControls.appendChild(addRowBtn);
+            batchAddBtn = document.createElement('button');
+            batchAddBtn.className = 'btn btn-success';
+            batchAddBtn.textContent = '📚 批量添加单词';
+            batchAddBtn.addEventListener('click', openModal);
+            toolbarControls.appendChild(batchAddBtn);
+            shuffleRowsBtn = document.createElement('button');
+            shuffleRowsBtn.className = 'btn';
+            shuffleRowsBtn.textContent = '🔀 打乱顺序';
+            shuffleRowsBtn.addEventListener('click', shuffleRows);
+            toolbarControls.appendChild(shuffleRowsBtn);
+            restoreOrderBtn = document.createElement('button');
+            restoreOrderBtn.className = 'btn btn-info';
+            restoreOrderBtn.textContent = '↩️ 恢复顺序';
+            restoreOrderBtn.addEventListener('click', restoreOriginalOrder);
+            toolbarControls.appendChild(restoreOrderBtn);
+            removeExtraColsBtn = document.createElement('button');
+            removeExtraColsBtn.className = 'btn btn-warning';
+            removeExtraColsBtn.textContent = '🗑️ 删除多余列';
+            removeExtraColsBtn.addEventListener('click', removeExtraColumns);
+            toolbarControls.appendChild(removeExtraColsBtn);
+            resetToBlankBtn = document.createElement('button');
+            resetToBlankBtn.className = 'btn btn-secondary';
+            resetToBlankBtn.textContent = '🔄 重置当前词本';
+            resetToBlankBtn.addEventListener('click', resetCurrentToBlank);
+            toolbarControls.appendChild(resetToBlankBtn);
+            clearAllBtn = document.createElement('button');
+            clearAllBtn.className = 'btn btn-danger';
+            clearAllBtn.textContent = '🗑️ 清空所有行';
+            clearAllBtn.addEventListener('click', clearAll);
+            toolbarControls.appendChild(clearAllBtn);
+        }
+        // 导出到手机按钮
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'btn btn-success';
+        exportBtn.textContent = '📱 导出到手机';
+        exportBtn.addEventListener('click', exportForMobile);
+        toolbarControls.appendChild(exportBtn);
+    }
+    
+    function getAllWordPairsFromNormalNotebooks() {
+        const pairs = [];
+        for (let id in notebooks) {
+            if (id === REVIEW_NOTEBOOK_ID) continue;
+            const nb = notebooks[id];
+            if (nb.isQuiz) continue;
+            const rowsData = nb.data.rows;
+            const nbName = nb.name || '未命名';
+            for (let i = 0; i < rowsData.length; i++) {
+                const row = rowsData[i];
+                const word = row[BASE_COL_0] ? row[BASE_COL_0].value : '';
+                const meaning = row[BASE_COL_1] ? row[BASE_COL_1].value : '';
+                if (word && word.trim() !== '') pairs.push({ word: word, meaning: meaning, notebook: nbName });
+            }
+        }
+        return pairs;
+    }
+    
+    function randomSample(arr, limit) {
+        if (arr.length === 0) return [];
+        const shuffled = [...arr];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled.slice(0, limit);
+    }
+    
+    function refreshReviewNotebook(force = false) {
+        const today = new Date().toISOString().slice(0, 10);
+        const lastRefreshKey = 'review_last_refresh_date';
+        const lastRefresh = localStorage.getItem(lastRefreshKey);
+        if (!force && lastRefresh === today) return;
+        const allPairs = getAllWordPairsFromNormalNotebooks();
+        // 去重：重复单词（忽略大小写）只保留第一个
+        const seenWords = new Set();
+        const uniquePairs = [];
+        for (const pair of allPairs) {
+            const wordKey = pair.word.trim().toLowerCase();
+            if (!seenWords.has(wordKey)) {
+                seenWords.add(wordKey);
+                uniquePairs.push(pair);
+            }
+        }
+        let selectedPairs = [];
+        if (uniquePairs.length === 0) selectedPairs = [];
+        else {
+            const sampleSize = Math.min(REVIEW_DAILY_LIMIT, uniquePairs.length);
+            selectedPairs = randomSample(uniquePairs, sampleSize);
+        }
+        const newRows = [];
+        for (let pair of selectedPairs) {
+            const row = {};
+            row[BASE_COL_0] = { value: pair.word, isWhitedOut: currentMode === 'en' };
+            row[BASE_COL_1] = { value: pair.meaning, isWhitedOut: currentMode === 'zh' };
+            newRows.push(row);
+        }
+        const reviewData = notebooks[REVIEW_NOTEBOOK_ID].data;
+        reviewData.rows = newRows;
+        reviewData.allColIds = new Set([BASE_COL_0, BASE_COL_1]);
+        reviewData.nextColId = 2;
+        reviewData.selectedRow = 0;
+        reviewData.selectedColIdx = currentMode === 'en' ? 1 : 0;
+        reviewData.tabPressCount = 0;
+        reviewData.originalRowsSnapshot = null;
+        saveAllNotebooks();
+        localStorage.setItem(lastRefreshKey, today);
+        if (activeNotebookId === REVIEW_NOTEBOOK_ID) loadCurrentNotebookData();
+        renderSidebar();
+    }
+    
+    function forceRefreshReview() {
+        if (confirm('确定立即刷新复习词本吗？当前复习内容将被替换。')) {
+            refreshReviewNotebook(true);
+            alert('复习词本已刷新！');
+        }
+    }
+    
+    // 渲染侧边栏：复习词本固定在顶部区域，普通词本在可滚动区域
+    function renderSidebar() {
+        // 渲染复习词本固定区域
+        reviewSection.innerHTML = '';
+        const reviewItem = document.createElement('div');
+        reviewItem.className = `notebook-item review-notebook-item ${activeNotebookId === REVIEW_NOTEBOOK_ID ? 'active' : ''}`;
+        reviewItem.innerHTML = `<span class="notebook-name">📚 ${escapeHtml(notebooks[REVIEW_NOTEBOOK_ID].name)}</span><div class="notebook-actions"></div>`;
+        reviewItem.addEventListener('click', () => {
+            if (REVIEW_NOTEBOOK_ID !== activeNotebookId) {
+                activeNotebookId = REVIEW_NOTEBOOK_ID;
+                loadCurrentNotebookData();
+                renderSidebar();
+            }
+        });
+        reviewSection.appendChild(reviewItem);
+        
+        // 渲染普通词本列表
+        notebookListDiv.innerHTML = '';
+        for (let id in notebooks) {
+            if (id === REVIEW_NOTEBOOK_ID) continue;
+            const nb = notebooks[id];
+            const wordCount = getNotebookWordCount(nb.data);
+            const item = document.createElement('div');
+            item.className = `notebook-item ${id === activeNotebookId ? 'active' : ''}`;
+            item.innerHTML = `<span class="notebook-name">${escapeHtml(nb.name)} <span class="notebook-count">${wordCount}</span></span><div class="notebook-actions"><button class="rename-btn" data-id="${id}" title="重命名">✏️</button><button class="delete-btn" data-id="${id}" title="删除">🗑️</button></div>`;
+            item.addEventListener('click', (e) => {
+                if (e.target.classList.contains('rename-btn') || e.target.classList.contains('delete-btn')) return;
+                if (id !== activeNotebookId) {
+                    activeNotebookId = id;
+                    loadCurrentNotebookData();
+                    renderSidebar();
+                }
+            });
+            const renameBtn = item.querySelector('.rename-btn');
+            renameBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                pendingRenameId = id;
+                renameInput.value = notebooks[id].name;
+                renameModal.style.display = 'flex';
+            });
+            const deleteBtn = item.querySelector('.delete-btn');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const normalCount = Object.keys(notebooks).filter(i => i !== REVIEW_NOTEBOOK_ID).length;
+                if (normalCount === 1) {
+                    alert('至少保留一个普通词本，不能删除最后一个普通词本。');
+                    return;
+                }
+                if (confirm(`确定删除词本「${notebooks[id].name}」吗？数据将永久丢失。`)) {
+                    delete notebooks[id];
+                    if (id === activeNotebookId) {
+                        const firstNormal = Object.keys(notebooks).find(i => i !== REVIEW_NOTEBOOK_ID);
+                        activeNotebookId = firstNormal || REVIEW_NOTEBOOK_ID;
+                        loadCurrentNotebookData();
+                    }
+                    saveAllNotebooks();
+                    renderSidebar();
+                }
+            });
+            notebookListDiv.appendChild(item);
+        }
+        updateTotalStats();
+        if (typeof renderMobileDrawer === 'function') renderMobileDrawer();
+    }
+    
+    function addNotebook() {
+        let name = prompt('请输入词本名称', '新词本');
+        if (!name) return;
+        const newId = 'notebook_' + Date.now();
+        notebooks[newId] = {
+            name: name,
+            isReview: false,
+            data: {
+                rows: [],
+                allColIds: new Set([BASE_COL_0, BASE_COL_1, EXT_COL_0, EXT_COL_1]),
+                nextColId: 4,
+                selectedRow: 0,
+                selectedColIdx: 0,
+                tabPressCount: 0,
+                originalRowsSnapshot: null
+            }
+        };
+        saveAllNotebooks();
+        activeNotebookId = newId;
+        loadCurrentNotebookData();
+        renderSidebar();
+    }
+    
+    function resetCurrentToBlank() {
+        if (isReviewMode) {
+            alert('复习词本的内容由系统自动生成，不能手动重置。如需清空，请刷新复习词本。');
+            return;
+        }
+        if (confirm('确定将当前普通词本重置为全新空白吗？所有数据将被清空。')) {
+            rows = [];
+            allColIds.clear();
+            allColIds.add(BASE_COL_0);
+            allColIds.add(BASE_COL_1);
+            if (!isReviewMode) {
+                allColIds.add(EXT_COL_0);
+                allColIds.add(EXT_COL_1);
+            }
+            nextColId = 2;
+            selectedRow = 0;
+            selectedColIdx = 0;
+            tabPressCount = 0;
+            originalRowsSnapshot = null;
+            syncCurrentDataToActive();
+            loadCurrentNotebookData();
+            renderSidebar();
+        }
+    }
+    
+    // ---------- 表格操作函数 ----------
+    function generateColId() { return `col_${nextColId++}`; }
+    function getOrderedColIds() { return Array.from(allColIds); }
+    
+    function whitenWholeColumn(targetColIndex) {
+        const colIds = getOrderedColIds();
+        if (targetColIndex < 0 || targetColIndex >= colIds.length) return;
+        const targetColId = colIds[targetColIndex];
+        for (let i = 0; i < rows.length; i++) if (rows[i] && rows[i][targetColId]) rows[i][targetColId].isWhitedOut = true;
+        syncCurrentDataToActive();
+        renderTable();
+    }
+    
+    function unwhitenWholeColumn(targetColIndex) {
+        const colIds = getOrderedColIds();
+        if (targetColIndex < 0 || targetColIndex >= colIds.length) return;
+        const targetColId = colIds[targetColIndex];
+        for (let i = 0; i < rows.length; i++) if (rows[i] && rows[i][targetColId]) rows[i][targetColId].isWhitedOut = false;
+        syncCurrentDataToActive();
+        renderTable();
+    }
+    
+    function toggleWholeColumnMask(colIndex) {
+        const colIds = getOrderedColIds();
+        if (colIndex < 0 || colIndex >= colIds.length) return;
+        const colId = colIds[colIndex];
+        let anyWhited = false;
+        for (let i = 0; i < rows.length; i++) if (rows[i] && rows[i][colId] && rows[i][colId].isWhitedOut) { anyWhited = true; break; }
+        if (anyWhited) unwhitenWholeColumn(colIndex); else whitenWholeColumn(colIndex);
+        focusSelectedCell();
+    }
+    
+    function addGlobalColumn() {
+        if (isReviewMode || getOrderedColIds().length >= 4) { alert('当前词本使用固定四列布局。'); return; }
+        const colIds = getOrderedColIds();
+        const newColId = generateColId();
+        allColIds.add(newColId);
+        const ordered = [...allColIds];
+        allColIds.clear();
+        ordered.forEach(id => allColIds.add(id));
+        for (let i = 0; i < rows.length; i++) if (!rows[i][newColId]) rows[i][newColId] = { value: '', isWhitedOut: false };
+        const newColIndex = colIds.length;
+        if (newColIndex >= 2) whitenWholeColumn(newColIndex - 2);
+        syncCurrentDataToActive();
+        renderTable();
+        focusSelectedCell();
+    }
+    
+    function removeExtraColumns() {
+        if (isReviewMode) { alert('复习词本不支持删除多余列。'); return; }
+        const colIds = getOrderedColIds();
+        const toDelete = colIds.slice(4);
+        if (toDelete.length === 0) { alert('没有多余列可删除。'); return; }
+        if (confirm(`确定删除 ${toDelete.length} 个自定义列吗？`)) {
+            unwhitenWholeColumn(0);
+            unwhitenWholeColumn(1);
+            for (let id of toDelete) {
+                allColIds.delete(id);
+                for (let i = 0; i < rows.length; i++) if (rows[i] && rows[i][id]) delete rows[i][id];
+            }
+            nextColId = 2;
+            if (selectedColIdx >= 2) selectedColIdx = 1;
+            tabPressCount = 0;
+            clampSelection();
+            syncCurrentDataToActive();
+            renderTable();
+            focusSelectedCell();
+        }
+    }
+    
+    function deleteColumn(colIndex) {
+        if (isReviewMode) { alert('复习词本不支持删除列。'); return; }
+        const colIds = getOrderedColIds();
+        if (colIndex < 4 || colIndex >= colIds.length) return;
+        const colIdToDelete = colIds[colIndex];
+        if (colIndex >= 2) unwhitenWholeColumn(colIndex - 2);
+        for (let i = 0; i < rows.length; i++) if (rows[i] && rows[i][colIdToDelete]) delete rows[i][colIdToDelete];
+        allColIds.delete(colIdToDelete);
+        const newColIds = colIds.filter(id => id !== colIdToDelete);
+        allColIds.clear();
+        newColIds.forEach(id => allColIds.add(id));
+        if (selectedColIdx >= colIndex) selectedColIdx = Math.max(0, selectedColIdx - 1);
+        if (getOrderedColIds().length === 4) tabPressCount = 0;
+        clampSelection();
+        syncCurrentDataToActive();
+        renderTable();
+        focusSelectedCell();
+    }
+    
+    function clampSelection() {
+        const colIds = getOrderedColIds();
+        if (rows.length === 0) { selectedRow = 0; selectedColIdx = 0; return; }
+        if (selectedRow < 0) selectedRow = 0;
+        if (selectedRow >= rows.length) selectedRow = rows.length - 1;
+        if (selectedColIdx < 0) selectedColIdx = 0;
+        if (selectedColIdx >= colIds.length) selectedColIdx = colIds.length - 1;
+    }
+    
+    function moveSelection(deltaRow, deltaCol) {
+        if (rows.length === 0 || isEditing) return;
+        const colIds = getOrderedColIds();
+        let newRow = selectedRow + deltaRow;
+        let newCol = selectedColIdx + deltaCol;
+        if (newRow < 0) newRow = 0;
+        if (newRow >= rows.length) newRow = rows.length - 1;
+        if (newCol < 0) newCol = 0;
+        if (newCol >= colIds.length) newCol = colIds.length - 1;
+        selectedRow = newRow;
+        selectedColIdx = newCol;
+        refreshSelection();
+        const selectedCell = document.querySelector(`td[data-row="${selectedRow}"][data-col-idx="${selectedColIdx}"]`);
+        if (selectedCell && tableContainer) {
+            const headerTh = document.querySelector('.infinite-table th');
+            const headerHeight = headerTh ? headerTh.offsetHeight : 0;
+            const cellRect = selectedCell.getBoundingClientRect();
+            const containerRect = tableContainer.getBoundingClientRect();
+            const relativeTop = cellRect.top - containerRect.top;
+            if (relativeTop < headerHeight + 5) tableContainer.scrollTop += relativeTop - headerHeight - 5;
+            else if (cellRect.bottom > containerRect.bottom) tableContainer.scrollTop += cellRect.bottom - containerRect.bottom + 10;
+        }
+        focusSelectedCell();
+        syncCurrentDataToActive();
+    }
+    
+    function refreshSelection() {
+        const old = document.querySelectorAll('#tableBody td.selected');
+        for (let i = 0; i < old.length; i++) old[i].classList.remove('selected');
+        const cell = document.querySelector(`#tableBody td[data-row="${selectedRow}"][data-col-idx="${selectedColIdx}"]`);
+        if (cell) cell.classList.add('selected');
+    }
+
+    function focusSelectedCell() {
+        const selectedCell = document.querySelector(`td[data-row="${selectedRow}"][data-col-idx="${selectedColIdx}"]`);
+        if (selectedCell) selectedCell.focus();
+    }
+    
+    function handleTabKey() {
+        if (isEditing) return;
+        const colIds = getOrderedColIds();
+        const colCount = colIds.length;
+        if (colCount < 2) return;
+        const nextPress = tabPressCount + 1;
+        const maskedColumn = nextPress % 2 === 1 ? BASE_COL_0 : BASE_COL_1;
+        rows.forEach(row => {
+            ensureRowColumns(row, !isReviewMode);
+            row[BASE_COL_0].isWhitedOut = maskedColumn === BASE_COL_0;
+            row[BASE_COL_1].isWhitedOut = maskedColumn === BASE_COL_1;
+        });
+        tabPressCount = nextPress;
+        syncCurrentDataToActive();
+        renderTable();
+        focusSelectedCell();
+    }
+    
+    function setCellValue(rowIndex, colId, newValue) {
+        if (!rows[rowIndex][colId]) rows[rowIndex][colId] = { value: '', isWhitedOut: false };
+        rows[rowIndex][colId].value = newValue;
+        rows[rowIndex][colId].isWhitedOut = false;
+        syncCurrentDataToActive();
+        renderTable();
+    }
+    
+    function attachEditorEvents(input, rowIndex, colId, oldValue) {
+        let isHandled = false;
+        const saveAndExit = () => {
+            if (isHandled) return;
+            isHandled = true;
+            setCellValue(rowIndex, colId, input.value);
+            isEditing = false;
+            renderTable();
+            setTimeout(() => focusSelectedCell(), 10);
+        };
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); saveAndExit(); }
+            else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!isHandled) { isHandled = true; input.value = oldValue; renderTable(); isEditing = false; setTimeout(() => focusSelectedCell(), 10); } }
+        });
+        input.addEventListener('blur', () => { if (!isHandled) saveAndExit(); });
+        isEditing = true;
+    }
+    
+    function editSelectedCell() {
+        if (rows.length === 0 || isEditing) return;
+        const colIds = getOrderedColIds();
+        const colId = colIds[selectedColIdx];
+        if (isReviewMode && (colId === BASE_COL_0 || colId === BASE_COL_1)) {
+            alert('复习词本的单词和意思内容不可编辑，只能通过每日随机抽取更新。');
+            return;
+        }
+        const cellDiv = document.querySelector(`td[data-row="${selectedRow}"][data-col-idx="${selectedColIdx}"] .cell-content`);
+        if (cellDiv) cellDiv.dispatchEvent(new Event('dblclick'));
+    }
+    
+    function addNewRow() {
+        if (isReviewMode) { alert('复习词本不支持手动添加新行。'); return; }
+        if (isEditing) return;
+        const newRow = {};
+        for (let colId of allColIds) newRow[colId] = { value: '', isWhitedOut: false };
+        rows.push(newRow);
+        selectedRow = rows.length - 1;
+        selectedColIdx = 0;
+        syncCurrentDataToActive();
+        renderTable();
+        setTimeout(() => { if (tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight; focusSelectedCell(); }, 50);
+    }
+    
+    function batchAddWords() {
+        if (isReviewMode) { alert('复习词本不支持批量添加。'); return; }
+        const raw = batchInput.value;
+        if (!raw.trim()) { alert('请输入内容。'); return; }
+        const lines = raw.split(/\r?\n/);
+        const items = [];
+        
+        for (let line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            
+            // 找到行中第一个空格/制表符的位置
+            const idx = trimmed.search(/[ \t]/);
+            if (idx > 0) {
+                // 有分隔符 → 前半段为英文，后半段为中文
+                const en = trimmed.substring(0, idx).trim();
+                const zh = trimmed.substring(idx + 1).trim();
+                items.push({ en, zh });
+            } else {
+                // 无分隔符 → 尝试逗号拆分加入单词列
+                const parts = trimmed.split(/[,，]+/).map(s => s.trim()).filter(s => s);
+                for (let p of parts) items.push({ en: p, zh: '' });
+            }
+        }
+        
+        if (items.length === 0) { alert('没有有效的条目。'); return; }
+        for (let item of items) {
+            const newRow = {};
+            for (let colId of allColIds) newRow[colId] = { value: '', isWhitedOut: false };
+            newRow[BASE_COL_0] = { value: item.en, isWhitedOut: false };
+            newRow[BASE_COL_1] = { value: item.zh, isWhitedOut: false };
+            rows.push(newRow);
+        }
+        if (items.length > 0) { selectedRow = rows.length - 1; selectedColIdx = 0; }
+        syncCurrentDataToActive();
+        renderTable();
+        setTimeout(() => { if (tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight; focusSelectedCell(); }, 50);
+        closeModal();
+    }
+    
+    function deleteRow(rowIndex) {
+        if (isReviewMode) { alert('复习词本不支持删除行。'); return; }
+        if (confirm(`删除第 ${rowIndex + 1} 行吗？`)) {
+            rows.splice(rowIndex, 1);
+            if (rows.length === 0) { selectedRow = 0; selectedColIdx = 0; }
+            else if (selectedRow >= rows.length) selectedRow = rows.length - 1;
+            syncCurrentDataToActive();
+            renderTable();
+            setTimeout(() => focusSelectedCell(), 10);
+        }
+    }
+    
+    function clearAll() {
+        if (isReviewMode) { alert('复习词本不支持清空行，请刷新复习词本重新抽取。'); return; }
+        if (rows.length && confirm(`清空当前词本的所有 ${rows.length} 行？`)) {
+            rows = [];
+            allColIds.clear();
+            allColIds.add(BASE_COL_0);
+            allColIds.add(BASE_COL_1);
+            nextColId = 2;
+            selectedRow = 0;
+            selectedColIdx = 0;
+            tabPressCount = 0;
+            originalRowsSnapshot = null;
+            syncCurrentDataToActive();
+            renderTable();
+            setTimeout(() => focusSelectedCell(), 10);
+        }
+    }
+    
+    // 打乱顺序（随机打乱），首次打乱时保存原始顺序快照
+    function shuffleRows() {
+        if (isReviewMode) { alert('复习词本不支持打乱顺序。'); return; }
+        const colCount = getOrderedColIds().length;
+        if (colCount < 2) { alert('当前词本没有可打乱的内容。'); return; }
+        if (rows.length <= 1) { alert('至少需要两行才能打乱顺序。'); return; }
+        if (originalRowsSnapshot === null) {
+            // 深拷贝当前所有行
+            originalRowsSnapshot = rows.map(row => {
+                const newRow = {};
+                for (let key in row) {
+                    if (row.hasOwnProperty(key)) newRow[key] = { ...row[key] };
+                }
+                return newRow;
+            });
+            syncCurrentDataToActive();
+        }
+        for (let i = rows.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [rows[i], rows[j]] = [rows[j], rows[i]];
+        }
+        selectedRow = 0;
+        selectedColIdx = 0;
+        syncCurrentDataToActive();
+        renderTable();
+        focusSelectedCell();
+    }
+    
+    // 恢复顺序
+    function restoreOriginalOrder() {
+        if (isReviewMode) { alert('复习词本不支持恢复顺序。'); return; }
+        if (originalRowsSnapshot === null) {
+            alert('没有可恢复的原始顺序（您尚未打乱过顺序）。');
+            return;
+        }
+        if (rows.length !== originalRowsSnapshot.length) {
+            alert('快照与当前行数不一致，无法恢复。请先打乱或重新加载。');
+            return;
+        }
+        rows = originalRowsSnapshot.map(row => {
+            const newRow = {};
+            for (let key in row) {
+                if (row.hasOwnProperty(key)) newRow[key] = { ...row[key] };
+            }
+            return newRow;
+        });
+        selectedRow = 0;
+        selectedColIdx = 0;
+        originalRowsSnapshot = null;  // 恢复后清除快照（也可保留，但下次打乱会重新生成）
+        syncCurrentDataToActive();
+        renderTable();
+        focusSelectedCell();
+    }
+    
+    function getColumnLabel(colId, index) {
+        if (colId === BASE_COL_0 || colId === EXT_COL_0) return '📝 英文';
+        if (colId === BASE_COL_1 || colId === EXT_COL_1) return '🌏 中文';
+        return `📌 第${index + 1}列`;
+    }
+    
+    function openModal() { batchModal.style.display = 'flex'; batchInput.value = ''; batchInput.focus(); }
+    function closeModal() { batchModal.style.display = 'none'; }
+    function closeRenameModal() { renameModal.style.display = 'none'; pendingRenameId = null; }
+    
+    function renderTable() {
+        clampSelection();
+        tableContainer.classList.toggle('review-list', isReviewMode);
+        const colArray = getOrderedColIds();
+        let headerHtml = '<tr>';
+        colArray.forEach((colId, idx) => {
+            const isDeletable = idx >= 4;
+            const isBase = (colId === BASE_COL_0 || colId === BASE_COL_1);
+            const isLastDataCol = (idx === colArray.length - 1 && idx >= 4);
+            headerHtml += `<th><div class="col-header"><span>${escapeHtml(getColumnLabel(colId, idx))}</span><div>${isBase ? `<button class="mask-col-btn" data-col-idx="${idx}">🔒</button>` : ''}${(!isReviewMode && isDeletable) ? `<button class="delete-col-btn" data-col-idx="${idx}">🗑️</button>` : ''}${(!isReviewMode && isLastDataCol) ? `<button class="add-col-btn" id="globalAddColBtn" title="为所有行添加新列">➕</button>` : ''}</div></div></th>`;
+        });
+        headerHtml += '<th style="width:60px;">操作</th><tr>';
+        tableHeader.innerHTML = headerHtml;
+        
+        document.querySelectorAll('.mask-col-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const colIdx = parseInt(btn.getAttribute('data-col-idx')); if (!isNaN(colIdx)) toggleWholeColumnMask(colIdx); }));
+        document.querySelectorAll('.delete-col-btn').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); const colIdx = parseInt(btn.getAttribute('data-col-idx')); if (!isNaN(colIdx) && confirm(`确定删除第 ${colIdx + 1} 列吗？`)) deleteColumn(colIdx); }));
+        if (!isReviewMode) {
+            const globalAddBtn = document.getElementById('globalAddColBtn');
+            if (globalAddBtn) {
+                const newBtn = globalAddBtn.cloneNode(true);
+                globalAddBtn.parentNode.replaceChild(newBtn, globalAddBtn);
+                newBtn.addEventListener('click', (e) => { e.stopPropagation(); addGlobalColumn(); });
+            }
+        }
+        
+        // 搜索模式下处理空结果或普通空状态
+        if (rows.length === 0) {
+            let msg = searchQuery ? '🔍 未找到匹配「' + escapeHtml(searchQuery) + '」的单词' : (isReviewMode ? '✨ 复习词本暂无内容，请等待系统自动抽取 ✨' : '✨ 点击「添加新行」或「批量添加单词」开始 ✨');
+            tableBody.innerHTML = `<tr><td colspan="${colArray.length + 1}" style="text-align:center;padding:60px;">${msg}</td></tr>`;
+            return;
+        }
+        
+        let bodyHtml = '';
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            bodyHtml += '<tr>';
+            for (let c = 0; c < colArray.length; c++) {
+                const colId = colArray[c];
+                const cell = row[colId] || { value: '', isWhitedOut: false };
+                const isWhited = cell.isWhitedOut;
+                const isReadonly = isReviewMode && (colId === BASE_COL_0 || colId === BASE_COL_1);
+                const display = cell.value || (isReadonly ? '（无内容）' : '<span style="color:#cbd5e1;">✏️ 空格键编辑</span>');
+                const isSelected = (r === selectedRow && c === selectedColIdx);
+                let cellContent = typeof display === 'string' ? display : escapeHtml(display);
+                if (colId === BASE_COL_0 && cell.value && cell.value.trim()) {
+                    cellContent += `<button class="tts-btn" data-word="${escapeHtml(cell.value).replace(/"/g, '&quot;')}">🔊</button>`;
+                }
+                bodyHtml += `<td data-row="${r}" data-col-idx="${c}" data-col-id="${colId}" class="${isWhited ? 'whited-out' : ''} ${isSelected ? 'selected' : ''} ${isReadonly ? 'readonly-cell' : ''}" ${isReadonly ? 'title="内容由系统每日抽取产生，不可手动编辑"' : ''}><div class="cell-content">${cellContent}</div></td>`;
+            }
+            bodyHtml += `<td style="text-align:center; white-space:nowrap;"><button class="delete-row-btn" data-row="${r}" title="删除此行">🗑️</button></td>`;
+            bodyHtml += '</tr>';
+        }
+        tableBody.innerHTML = bodyHtml;
+        
+        const tds = document.querySelectorAll('#tableBody td');
+        tds.forEach(td => {
+            if (td.classList && !td.querySelector('.delete-row-btn')) {
+                td.addEventListener('click', (e) => {
+                    if (isEditing) return;
+                    if (e.target.closest('.tts-btn')) return; // 点喇叭不选中格子
+                    const row = parseInt(td.getAttribute('data-row'));
+                    const colIdx = parseInt(td.getAttribute('data-col-idx'));
+                    if (!isNaN(row) && !isNaN(colIdx)) { selectedRow = row; selectedColIdx = colIdx; refreshSelection(); focusSelectedCell(); }
+                });
+            }
+        });
+        
+        document.querySelectorAll('#tableBody td .cell-content').forEach(el => {
+            el.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                if (isEditing) return;
+                const td = el.closest('td');
+                const row = parseInt(td.getAttribute('data-row'));
+                const colIdx = parseInt(td.getAttribute('data-col-idx'));
+                const colId = td.getAttribute('data-col-id');
+                if (isNaN(row) || isNaN(colIdx)) return;
+                if (isReviewMode && (colId === BASE_COL_0 || colId === BASE_COL_1)) { alert('复习词本的单词和意思内容不可编辑，只能通过每日随机抽取更新。'); return; }
+                const oldVal = rows[row][colId]?.value || '';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = oldVal;
+                input.style.width = '100%';
+                input.style.padding = '8px';
+                input.style.fontSize = '14px';
+                input.style.border = '1px solid #cbd5e1';
+                input.style.borderRadius = '8px';
+                const parent = el.parentElement;
+                parent.replaceChild(input, el);
+                input.focus();
+                attachEditorEvents(input, row, colId, oldVal);
+            });
+        });
+        
+        document.querySelectorAll('.delete-row-btn').forEach(btn => btn.addEventListener('click', (e) => { const row = parseInt(btn.getAttribute('data-row')); deleteRow(row); }));
+        
+        document.querySelectorAll('.tts-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                const word = this.getAttribute('data-word');
+                if (word) speakText(word);
+            });
+        });
+        
+        // 搜索模式：显示匹配数
+        const searchInfo = document.getElementById('searchInfo');
+        if (searchInfo) {
+            if (searchQuery) {
+                searchInfo.style.display = 'inline';
+                searchInfo.textContent = '🔍 共 ' + rows.length + ' 条匹配';
+            } else {
+                searchInfo.style.display = 'none';
+            }
+        }
+    }
+    
+    function onGlobalKeyDown(e) {
+        if (isEditing) return;
+        const active = document.activeElement;
+        if (active && active.tagName === 'INPUT') return;
+        if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1, 0); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1, 0); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); moveSelection(0, -1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); moveSelection(0, 1); }
+        else if (e.key === ' ') { e.preventDefault(); editSelectedCell(); }
+        else if (e.key === 'Tab') { e.preventDefault(); handleTabKey(); }
+        else if (e.key === 'Enter') { e.preventDefault(); addNewRow(); }
+    }
+    
+    function serializeNotebooks() {
+        const o = {};
+        for (let id in notebooks) {
+            const nb = notebooks[id];
+            o[id] = { name: nb.name, isReview: nb.isReview || false, isQuiz: nb.isQuiz || false, data: { rows: nb.data.rows, allColIds: Array.from(nb.data.allColIds), nextColId: nb.data.nextColId, selectedRow: nb.data.selectedRow, selectedColIdx: nb.data.selectedColIdx, tabPressCount: nb.data.tabPressCount || 0, originalRowsSnapshot: nb.data.originalRowsSnapshot || null } };
+        }
+        return o;
+    }
+
+    function init() {
+        loadAllNotebooks();
+        refreshReviewNotebook(false);
+        if (!activeNotebookId || !notebooks[activeNotebookId]) {
+            activeNotebookId = Object.keys(notebooks).find(id => id !== REVIEW_NOTEBOOK_ID) || REVIEW_NOTEBOOK_ID;
+        }
+        loadCurrentNotebookData();
+        renderSidebar();
+
+        addNotebookBtn.addEventListener('click', addNotebook);
+        cancelBatchBtn.addEventListener('click', closeModal);
+        confirmBatchBtn.addEventListener('click', batchAddWords);
+        // 模式切换时更新 placeholder 提示
+        document.querySelectorAll('input[name="batchMode"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const mode = this.value;
+                if (mode === 'en') batchInput.placeholder = 'apple, orange, banana\ncat, dog, rabbit';
+                else if (mode === 'zh') batchInput.placeholder = '苹果, 香蕉, 橘子\n猫, 狗, 兔子';
+                else if (mode === 'both') batchInput.placeholder = 'Suffer 遭受\nInfer 推测\nPreferable 更可取的，更好的\n或：apple, 苹果';
+            });
+        });
+        // 搜索功能 —— 在全部词本中搜索
+        function doGlobalSearch() {
+            const q = searchQuery.trim().toLowerCase();
+            if (!q) { rows = []; return; }
+            const allPairs = getAllWordPairsFromNormalNotebooks();
+            const seen = new Set();
+            const matched = [];
+            for (const p of allPairs) {
+                const w = p.word.toLowerCase();
+                const m = p.meaning.toLowerCase();
+                if ((w.includes(q) || m.includes(q)) && !seen.has(w)) { seen.add(w); matched.push(p); }
+            }
+            rows = matched.map(p => {
+                const row = {};
+                row[BASE_COL_0] = { value: p.word, isWhitedOut: false };
+                row[BASE_COL_1] = { value: (p.meaning || '') + (p.meaning ? ' — ' : '') + '📘 ' + p.notebook, isWhitedOut: false };
+                return row;
+            });
+        }
+        function savePreSearchState() {
+            if (!_preSearchState) {
+                _preSearchState = {
+                    notebookId: activeNotebookId,
+                    rows: rows.map(r => Object.assign({}, r)),
+                    allColIds: new Set(allColIds),
+                    nextColId: nextColId,
+                    isReviewMode: isReviewMode
+                };
+            }
+        }
+        function restorePreSearchState() {
+            if (_preSearchState) {
+                activeNotebookId = _preSearchState.notebookId;
+                rows = _preSearchState.rows;
+                allColIds = _preSearchState.allColIds;
+                nextColId = _preSearchState.nextColId;
+                isReviewMode = _preSearchState.isReviewMode;
+                _preSearchState = null;
+                selectedRow = 0;
+                selectedColIdx = 0;
+            }
+        }
+        const searchInput = document.getElementById('searchInput');
+        const searchClear = document.getElementById('searchClear');
+        searchInput.addEventListener('input', function() {
+            searchQuery = this.value;
+            searchClear.style.display = searchQuery ? 'inline' : 'none';
+            if (searchQuery) {
+                savePreSearchState();
+                allColIds = new Set([BASE_COL_0, BASE_COL_1]);
+                nextColId = 2;
+                isReviewMode = false;
+                selectedRow = 0;
+                selectedColIdx = 0;
+                doGlobalSearch();
+            } else {
+                restorePreSearchState();
+            }
+            renderTable();
+            renderToolbarButtons();
+        });
+        function clearSearch() {
+            searchInput.value = '';
+            searchQuery = '';
+            searchClear.style.display = 'none';
+            restorePreSearchState();
+            renderTable();
+            renderToolbarButtons();
+            searchInput.blur();
+        }
+        searchClear.addEventListener('click', clearSearch);
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') clearSearch();
+        });
+
+        cancelRenameBtn.addEventListener('click', closeRenameModal);
+        confirmRenameBtn.addEventListener('click', () => {
+            if (pendingRenameId) {
+                const newName = renameInput.value.trim();
+                if (newName) { notebooks[pendingRenameId].name = newName; saveAllNotebooks(); renderSidebar(); }
+            }
+            closeRenameModal();
+        });
+        // 鉴权相关
+        const authModalEl = document.getElementById('authModal');
+        document.getElementById('showRegisterBtn').addEventListener('click', () => {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('loginError').style.display = 'none';
+            document.getElementById('registerError').style.display = 'none';
+            document.getElementById('registerUsername').focus();
+        });
+        document.getElementById('showLoginBtn').addEventListener('click', () => {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginError').style.display = 'none';
+            document.getElementById('registerError').style.display = 'none';
+            document.getElementById('loginUsername').focus();
+        });
+        document.getElementById('loginSubmitBtn').addEventListener('click', async () => {
+            const email = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errEl = document.getElementById('loginError');
+            if (!email || !password) {
+                errEl.textContent = '请输入邮箱和密码';
+                errEl.style.display = 'block';
+                return;
+            }
+            showAuthLoading(true);
+            try {
+                await cloudLogin(email, password);
+                showAuthSuccess('✅ 登录成功！');
+            } catch (e) {
+                showAuthLoading(false);
+                errEl.textContent = e.message;
+                errEl.style.display = 'block';
+                document.getElementById('loginForm').style.display = 'block';
+            }
+        });
+        document.getElementById('registerSubmitBtn').addEventListener('click', async () => {
+            const email = document.getElementById('registerUsername').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const errEl = document.getElementById('registerError');
+            if (!email || !password) {
+                errEl.textContent = '请输入邮箱和密码';
+                errEl.style.display = 'block';
+                return;
+            }
+            showAuthLoading(true);
+            try {
+                await cloudRegister(email, password);
+                showAuthSuccess('✅ 注册成功！请查看邮箱确认链接（或直接登录）');
+            } catch (e) {
+                showAuthLoading(false);
+                errEl.textContent = e.message;
+                errEl.style.display = 'block';
+                document.getElementById('registerForm').style.display = 'block';
+            }
+        });
+        // 点击弹窗外部关闭
+        window.addEventListener('click', (e) => {
+            if (e.target === batchModal) closeModal();
+            if (e.target === renameModal) closeRenameModal();
+            if (e.target === authModalEl) closeAuthModal();
+        });
+        // Enter 键在输入框触发表单提交
+        document.getElementById('loginPassword').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('loginSubmitBtn').click();
+        });
+        document.getElementById('registerPassword').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('registerSubmitBtn').click();
+        });
+
+        updateStudyModeUI();
+        document.querySelectorAll('.mode-btn').forEach(button => {
+            button.addEventListener('click', () => setStudyMode(button.dataset.mode));
+        });
+        const moreActionsBtn = document.getElementById('moreActionsBtn');
+        const moreActionsMenu = document.getElementById('moreActionsMenu');
+        if (moreActionsBtn && moreActionsMenu) {
+            moreActionsBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isHidden = moreActionsMenu.hasAttribute('hidden');
+                if (isHidden) moreActionsMenu.removeAttribute('hidden'); else moreActionsMenu.setAttribute('hidden', '');
+                moreActionsBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+            });
+            moreActionsMenu.addEventListener('click', (event) => {
+                const action = event.target.closest('button')?.dataset.action;
+                if (!action) return;
+                if (action === 'shuffle') shuffleRows();
+                if (action === 'restore') restoreOriginalOrder();
+                if (action === 'clear') clearAll();
+                if (action === 'reset') resetCurrentToBlank();
+                if (action === 'refresh') forceRefreshReview();
+                moreActionsMenu.setAttribute('hidden', '');
+                moreActionsBtn.setAttribute('aria-expanded', 'false');
+            });
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('#moreActions')) {
+                    moreActionsMenu.setAttribute('hidden', '');
+                    moreActionsBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+        
+        window.addEventListener('keydown', onGlobalKeyDown);
+        
+        // 自动登录
+        updateAuthUI();
+        tryAutoLogin();
+
+        // 定时自动拉取云端更新（每30秒），仅在其他设备有变化时无声刷新词本列表
+        setInterval(async () => {
+            if (!sb || !getUserEmail()) return;
+            if (isEditing) return;
+            // 本地刚保存过（10秒内），跳过，以免云端旧数据覆盖本地新数据
+            if (lastSyncTime && Date.now() - lastSyncTime < 10000) return;
+            try {
+                const { data: { session } } = await sb.auth.getSession();
+                if (!session) return;
+                const { data } = await sb.from('sync_data').select('payload').eq('user_id', session.user.id).maybeSingle();
+                if (data && data.payload) {
+                    const raw = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
+                    const cloudPayload = JSON.stringify({ notebooks: raw.notebooks });
+                    const localPayload = JSON.stringify({ notebooks: serializeNotebooks() });
+                    if (cloudPayload !== localPayload) {
+                        // 只更新词本数据，不切换词本、不刷新当前编辑
+                        const cloudNotebooks = raw.notebooks || {};
+                        for (let id in cloudNotebooks) {
+                            const cnb = cloudNotebooks[id];
+                            notebooks[id] = {
+                                name: cnb.name, isReview: cnb.isReview || false, isQuiz: cnb.isQuiz || false,
+                                data: { rows: cnb.data.rows, allColIds: new Set(cnb.data.allColIds), nextColId: cnb.data.nextColId || 2, selectedRow: cnb.data.selectedRow || 0, selectedColIdx: cnb.data.selectedColIdx || 0, tabPressCount: cnb.data.tabPressCount || 0, originalRowsSnapshot: cnb.data.originalRowsSnapshot || null }
+                            };
+                        }
+                        saveAllNotebooks();
+                        renderSidebar();
+                        setSyncStatus('synced', '☁️ 已同步');
+                    }
+                }
+            } catch(e) { /* 静默失败，下次重试 */ }
+        }, 30000);
+
+        // 手机端：底部操作栏按钮
+        const mobEditBtn = document.getElementById('mobEditBtn');
+        const mobMaskBtn = document.getElementById('mobMaskBtn');
+        const mobNewBtn = document.getElementById('mobNewBtn');
+        const mobRefreshBtn = document.getElementById('mobRefreshBtn');
+        if (mobEditBtn) mobEditBtn.addEventListener('click', function() {
+            if (rows.length === 0 || isEditing) return;
+            editSelectedCell();
+        });
+        if (mobMaskBtn) mobMaskBtn.addEventListener('click', function() {
+            handleTabKey();
+        });
+        if (mobNewBtn) mobNewBtn.addEventListener('click', function() {
+            addNewRow();
+        });
+        if (mobRefreshBtn) mobRefreshBtn.addEventListener('click', async function() {
+            if (sb && getUserEmail()) {
+                setSyncStatus('loading', '☁️ 同步中...');
+                await loadFromCloud();
+                if (typeof renderMobileDrawer === 'function') renderMobileDrawer();
+            } else {
+                alert('请先登录后再同步');
+            }
+        });
+
+        // 手机端：汉堡菜单抽屉
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const mobileDrawer = document.getElementById('mobileDrawer');
+        const drawerOverlay = document.getElementById('drawerOverlay');
+        const drawerClose = document.getElementById('drawerClose');
+        if (hamburgerBtn && mobileDrawer && drawerOverlay) {
+            function openDrawer() { mobileDrawer.classList.add('open'); drawerOverlay.classList.add('show'); }
+            function closeDrawer() { mobileDrawer.classList.remove('open'); drawerOverlay.classList.remove('show'); }
+            hamburgerBtn.addEventListener('click', openDrawer);
+            drawerOverlay.addEventListener('click', closeDrawer);
+            if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
+            const drawerAddBtn = document.getElementById('drawerAddBtn');
+            if (drawerAddBtn) drawerAddBtn.addEventListener('click', function() {
+                addNotebook(); closeDrawer();
+            });
+        }
+        window.renderMobileDrawer = function() {
+            const list = document.getElementById('drawerNbList');
+            const totalEl = document.getElementById('drawerTotalCount');
+            if (!list || !totalEl) return;
+            const total = calculateTotalWordCount();
+            totalEl.textContent = total;
+            let html = '';
+            if (notebooks[REVIEW_NOTEBOOK_ID]) {
+                html += '<div class="drawer-nb-item review-item" data-nb-id="' + REVIEW_NOTEBOOK_ID + '">🔄 复习词本 <span class="notebook-count">' + getNotebookWordCount(notebooks[REVIEW_NOTEBOOK_ID].data) + '</span></div>';
+            }
+            for (let id in notebooks) {
+                if (id === REVIEW_NOTEBOOK_ID) continue;
+                const nb = notebooks[id];
+                html += '<div class="drawer-nb-item" data-nb-id="' + id + '" style="display:flex;align-items:center;justify-content:space-between;">';
+                html += '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (nb.isQuiz ? '📝 ' : '📘 ') + escapeHtml(nb.name) + ' <span class="notebook-count">' + getNotebookWordCount(nb.data) + '</span></span>';
+                html += '<span style="display:flex;gap:2px;flex-shrink:0;">';
+                html += '<button class="drawer-rename-btn" data-id="' + id + '" style="background:none;border:none;font-size:1.1rem;padding:8px;cursor:pointer;border-radius:6px;color:#64748b;-webkit-tap-highlight-color:transparent;">✏️</button>';
+                html += '<button class="drawer-delete-btn" data-id="' + id + '" style="background:none;border:none;font-size:1.1rem;padding:8px;cursor:pointer;border-radius:6px;color:#ef4444;-webkit-tap-highlight-color:transparent;">🗑️</button>';
+                html += '</span></div>';
+            }
+            list.innerHTML = html;
+            list.querySelectorAll('.drawer-nb-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    if (e.target.closest('button')) return;
+                    const nbId = this.getAttribute('data-nb-id');
+                    if (nbId && notebooks[nbId]) {
+                        activeNotebookId = nbId;
+                        loadCurrentNotebookData();
+                        renderSidebar();
+                        renderToolbarButtons();
+                        renderTable();
+                        if (mobileDrawer) mobileDrawer.classList.remove('open');
+                        if (drawerOverlay) drawerOverlay.classList.remove('show');
+                    }
+                });
+            });
+            list.querySelectorAll('.drawer-rename-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const id = this.getAttribute('data-id');
+                    pendingRenameId = id;
+                    renameInput.value = notebooks[id].name;
+                    renameModal.style.display = 'flex';
+                    if (mobileDrawer) mobileDrawer.classList.remove('open');
+                    if (drawerOverlay) drawerOverlay.classList.remove('show');
+                });
+            });
+            list.querySelectorAll('.drawer-delete-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const id = this.getAttribute('data-id');
+                    const normalCount = Object.keys(notebooks).filter(i => i !== REVIEW_NOTEBOOK_ID).length;
+                    if (normalCount === 1) {
+                        alert('至少保留一个普通词本，不能删除最后一个普通词本。');
+                        return;
+                    }
+                    if (confirm('确定删除词本「' + notebooks[id].name + '」吗？数据将永久丢失。')) {
+                        delete notebooks[id];
+                        if (id === activeNotebookId) {
+                            const firstNormal = Object.keys(notebooks).find(i => i !== REVIEW_NOTEBOOK_ID);
+                            activeNotebookId = firstNormal || REVIEW_NOTEBOOK_ID;
+                            loadCurrentNotebookData();
+                        }
+                        saveAllNotebooks();
+                        renderSidebar();
+                        if (mobileDrawer) mobileDrawer.classList.remove('open');
+                        if (drawerOverlay) drawerOverlay.classList.remove('show');
+                    }
+                });
+            });
+        };
+    }
+    
+    // ===== 导出到手机：生成自带数据的独立 HTML 文件 =====
+    function exportForMobile() {
+        // 收集所有 localStorage 数据
+        const exportData = {};
+        const keys = [
+            STORAGE_KEY,
+            'kuihua_auth_token',
+            'kuihua_auth_username',
+            'kuihua_auth_time',
+            'review_last_refresh_date'
+        ];
+        for (const key of keys) {
+            const val = localStorage.getItem(key);
+            if (val !== null) exportData[key] = val;
+        }
+        
+        // 读取当前 HTML 源码（outerHTML 不含 DOCTYPE，手动补上）
+        const htmlSource = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        
+        // 在 </body> 前注入数据恢复脚本
+        const injectScript = `<script>
+// 🌻 空白格 · 自动恢复数据
+(function(){
+var _d = ${JSON.stringify(exportData)};
+for(var k in _d) { if(_d.hasOwnProperty(k)) localStorage.setItem(k, _d[k]); }
+})();
+<` + `/script>`;
+        
+        const exported = htmlSource.replace('</body>', injectScript + '</body>');
+        
+        // 创建下载
+        const blob = new Blob([exported], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '空白格_手机版.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        alert('✅ 导出成功！\n\n文件：空白格_手机版.html\n\n把这个文件传到手机上，用浏览器打开即可。');
+    }
+    
+    init();
+
+let quizSession = null;
+
+function getQuizSourceNotebook() {
+    if (activeNotebookId && activeNotebookId !== REVIEW_NOTEBOOK_ID && notebooks[activeNotebookId] && !notebooks[activeNotebookId].isQuiz) {
+        return notebooks[activeNotebookId];
+    }
+    const fallbackId = Object.keys(notebooks).find(id => id !== REVIEW_NOTEBOOK_ID && !notebooks[id].isQuiz);
+    return fallbackId ? notebooks[fallbackId] : null;
+}
+
+function getQuizPairs(notebook) {
+    if (!notebook) return [];
+    return notebook.data.rows.map(row => ({
+        word: row[BASE_COL_0] ? String(row[BASE_COL_0].value || '').trim() : '',
+        meaning: row[BASE_COL_1] ? String(row[BASE_COL_1].value || '').trim() : ''
+    })).filter(pair => pair.word && pair.meaning);
+}
+
+function openQuizSetup() {
+    const overlay = document.getElementById('quizOverlay');
+    const body = document.getElementById('quizBody');
+    const source = getQuizSourceNotebook();
+    const pairs = getQuizPairs(source);
+    overlay.classList.add('show');
+    if (!source || pairs.length === 0) {
+        body.innerHTML = '<div class="quiz-empty">📭 当前词本还没有完整的中英词对，请先补充英文和中文。</div><button class="btn quiz-next-btn" type="button" onclick="closeQuiz()">关闭</button>';
+        return;
+    }
+    body.innerHTML = `<div class="quiz-setup-section"><label>📓 当前词本</label><div class="quiz-prompt" style="font-size:1rem;text-align:left;">${escapeHtml(source.name || '未命名')} · ${pairs.length} 个有效词对</div></div><div class="quiz-setup-section"><label>🧭 答题方向</label><p style="color:#64748b;font-size:0.86rem;line-height:1.5;">${currentMode === 'en' ? '显示中文，输入英文' : '显示英文，输入中文'}</p></div><button class="quiz-start-btn" id="quizStartBtn">开始测验</button>`;
+    document.getElementById('quizStartBtn').addEventListener('click', () => startQuizSession(source, pairs));
+}
+
+function normalizeQuizAnswer(value) {
+    return String(value || '').trim().toLocaleLowerCase().replace(/[\s\u3000]+/g, ' ');
+}
+
+function startQuizSession(source, pairs) {
+    quizSession = { sourceName: source.name || '未命名', pairs: pairs.slice(), index: 0, correct: 0, wrong: [], answered: false };
+    renderQuizQuestion();
+}
+
+function renderQuizQuestion() {
+    if (!quizSession) return;
+    if (quizSession.index >= quizSession.pairs.length) {
+        renderQuizResult();
+        return;
+    }
+    const body = document.getElementById('quizBody');
+    const pair = quizSession.pairs[quizSession.index];
+    const prompt = currentMode === 'en' ? pair.meaning : pair.word;
+    body.innerHTML = `<div class="quiz-progress">${escapeHtml(quizSession.sourceName)} · 第 ${quizSession.index + 1} / ${quizSession.pairs.length} 题</div><div class="quiz-prompt">${escapeHtml(prompt)}</div><input class="quiz-answer-input" id="quizAnswerInput" type="text" autocomplete="off" autocapitalize="off" placeholder="输入你的答案"><div class="quiz-feedback" id="quizFeedback" aria-live="polite"></div><button class="btn btn-primary quiz-next-btn" id="quizSubmitBtn" type="button">提交答案</button>`;
+    const input = document.getElementById('quizAnswerInput');
+    const submit = document.getElementById('quizSubmitBtn');
+    input.focus();
+    const submitAnswer = () => {
+        if (quizSession.answered) {
+            quizSession.index++;
+            quizSession.answered = false;
+            renderQuizQuestion();
+            return;
+        }
+        const expected = currentMode === 'en' ? pair.word : pair.meaning;
+        const actual = input.value;
+        const isCorrect = normalizeQuizAnswer(actual) === normalizeQuizAnswer(expected);
+        quizSession.answered = true;
+        input.disabled = true;
+        if (isCorrect) {
+            quizSession.correct++;
+            document.getElementById('quizFeedback').className = 'quiz-feedback correct';
+            document.getElementById('quizFeedback').textContent = '✅ 回答正确';
+        } else {
+            quizSession.wrong.push({ prompt, expected, actual });
+            document.getElementById('quizFeedback').className = 'quiz-feedback wrong';
+            document.getElementById('quizFeedback').innerHTML = `❌ 正确答案：<strong>${escapeHtml(expected)}</strong>`;
+        }
+        submit.textContent = quizSession.index === quizSession.pairs.length - 1 ? '查看结果' : '下一题';
+    };
+    submit.addEventListener('click', submitAnswer);
+    input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') { event.preventDefault(); submitAnswer(); }
+    });
+}
+
+function renderQuizResult() {
+    const body = document.getElementById('quizBody');
+    const total = quizSession.pairs.length;
+    const accuracy = total ? Math.round((quizSession.correct / total) * 100) : 0;
+    const wrongHtml = quizSession.wrong.length ? `<div class="quiz-wrong-list">${quizSession.wrong.map(item => `<div class="quiz-wrong-item"><strong>${escapeHtml(item.prompt)}</strong><br>正确答案：${escapeHtml(item.expected)}${item.actual ? `<br>你的答案：${escapeHtml(item.actual)}` : '<br>你的答案：未填写'}</div>`).join('')}</div>` : '<div class="quiz-empty">🎉 本次没有错题，表现很好！</div>';
+    body.innerHTML = `<div class="quiz-result-score">${accuracy}%</div><div class="quiz-result-summary">答对 ${quizSession.correct} / ${total} 题 · 错题 ${quizSession.wrong.length} 题</div><h3 style="font-size:0.95rem;margin-bottom:10px;">错题列表</h3>${wrongHtml}<button class="btn quiz-next-btn" type="button" onclick="closeQuiz()">完成</button>`;
+}
+
+function closeQuiz() {
+    document.getElementById('quizOverlay').classList.remove('show');
+    quizSession = null;
+}
+</script>
+<script>
+    if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+        window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    }
+    let deferredInstallPrompt = null;
+    const installPrompt = document.getElementById('installPrompt');
+    const installPromptButton = document.getElementById('installPromptButton');
+    const installPromptClose = document.getElementById('installPromptClose');
+    const installDismissedKey = 'blank_word_install_prompt_dismissed';
+    window.addEventListener('beforeinstallprompt', event => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        if (localStorage.getItem(installDismissedKey) !== '1' && installPrompt) installPrompt.hidden = false;
+    });
+    installPromptButton?.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        if (installPrompt) installPrompt.hidden = true;
+    });
+    installPromptClose?.addEventListener('click', () => {
+        localStorage.setItem(installDismissedKey, '1');
+        if (installPrompt) installPrompt.hidden = true;
+    });
+    window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        if (installPrompt) installPrompt.hidden = true;
+    });
+</script>
+</body>
+</html>
