@@ -236,6 +236,7 @@
         .whited-out .cell-content { color: #ffffff !important; }
         .whited-out:hover .cell-content, .whited-out.selected .cell-content { color: #1e293b !important; }
         .cell-content { color: #1e293b; word-break: break-word; transition: color 0.1s ease; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+        .infinite-table td input[type="text"] { box-sizing: border-box; display: block; max-width: 100%; min-width: 0; font: inherit; }
         .readonly-cell .cell-content { color: #666; font-style: italic; }
         .tts-btn {
             background: none;
@@ -389,6 +390,12 @@
                 font-size: 0.9rem; gap: 4px;
                 padding: 12px 8px; min-height: 44px;
                 align-items: center;
+            }
+            .infinite-table td input[type="text"] {
+                width: 100% !important;
+                min-height: 44px;
+                padding: 8px !important;
+                font-size: 16px !important;
             }
             .infinite-table th:last-child, .infinite-table td:last-child { width: 44px; }
             .footer-note { display: none; }
